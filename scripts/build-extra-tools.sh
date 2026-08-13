@@ -56,9 +56,9 @@ ${CROSS}gcc -static -O2 -I/tmp/bsd/include \
   -L/tmp/bsd/lib -lbsd -lmd
 
 # ---------- 3. ncurses（供 zsh 使用） ----------
-curl -fsSL -o /tmp/ncurses.tar.gz https://ftp.gnu.org/gnu/ncurses/ncurses-6.4.tar.gz
+curl -fsSL -o /tmp/ncurses.tar.gz https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz
 tar -xzf /tmp/ncurses.tar.gz -C /tmp
-cd /tmp/ncurses-6.4
+cd /tmp/ncurses-6.2
 ./configure --host="${CROSS%%-}" --prefix=/tmp/ncurses-install \
   --enable-static --disable-shared --without-debug --without-ada \
   --without-cxx --without-manpages --without-tests --without-pkg-config \
