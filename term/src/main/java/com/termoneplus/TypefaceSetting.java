@@ -50,7 +50,7 @@ public class TypefaceSetting {
         license = view.findViewById(R.id.buildin_license);
         try {
             AssetManager am = activity.getAssets();
-            InputStream in = am.open("font/DejaVu.lic");
+            InputStream in = am.open("font/CaskaydiaCove.lic");
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
             StringBuilder buffer = new StringBuilder();
@@ -87,7 +87,7 @@ public class TypefaceSetting {
     }
 
     public static void create(AssetManager am) {
-        typeface = Typeface.createFromAsset(am, "font/DejaVuSansMono.ttf");
+        typeface = Typeface.createFromAsset(am, "font/CaskaydiaCoveNerdFont-Regular.ttf");
     }
 
     public static boolean chose(Activity activity) {
