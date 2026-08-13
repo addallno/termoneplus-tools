@@ -23,7 +23,7 @@ curl -fSL --connect-timeout 30 --retry 3 -o /tmp/libbsd.tar.gz \
   https://github.com/guillemj/libbsd/archive/refs/tags/0.12.2.tar.gz
 tar -xzf /tmp/libbsd.tar.gz -C /tmp
 cd /tmp/libbsd-0.12.2
-./autogen.sh
+./autogen
 ./configure --host="${CROSS%%-}" --prefix=/tmp/bsd \
   --disable-shared --enable-static --without-libmd
 make -j2
