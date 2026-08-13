@@ -15,9 +15,10 @@ tar -xJf /tmp/musl.tar.xz -C /opt
 export PATH="$TC_DIR/bin:$PATH"
 ${CROSS}gcc --version | head -1
 
-# ---------- 2. OpenBSD netcat ----------
-git clone --depth 1 https://github.com/tabos/openbsd-netcat /tmp/nc
-${CROSS}gcc -static -O2 -o "$OUT/nc" /tmp/nc/netcat.c
+# ---------- 2. OpenBSD netcat（多文件：netcat.c + atomicio.c + socks.c） ----------
+git clone --depth 1 https://github.com/adamallaf/openbsd-netcat /tmp/nc
+${CROSS}gcc -static -O2 -o "$OUT/nc" \
+  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c
 
 # ---------- 3. bash（--enable-static-link 静态链接） ----------
 curl -fsSL -o /tmp/bash.tar.gz https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
