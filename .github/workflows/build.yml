@@ -36,11 +36,14 @@ jobs:
         run: |
           set -eux
           TC="$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CC="$TC/armv7a-linux-androideabi19-clang"
+          [ -x "$CC" ] || CC="$TC/armv7a-linux-androideabi21-clang"
+          echo "使用编译器: $CC"
           curl -fsSL -o /tmp/dropbear.tar.bz2 "https://dropbear.nl/mirror/releases/dropbear-${DROPBEAR_VERSION}.tar.bz2"
           tar xjf /tmp/dropbear.tar.bz2 -C /tmp
           python3 "patches/dropbear-android-user.py" "/tmp/dropbear-${DROPBEAR_VERSION}/src"
           cd "/tmp/dropbear-${DROPBEAR_VERSION}"
-          export CC="$TC/armv7a-linux-androideabi21-clang"
+          export CC="$CC"
           export AR="$TC/llvm-ar" RANLIB="$TC/llvm-ranlib" STRIP="$TC/llvm-strip"
           ./configure --host=arm-linux-androideabi \
             --disable-zlib --disable-pam --disable-shadow \
@@ -54,10 +57,13 @@ jobs:
         run: |
           set -eux
           TC="$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CC="$TC/armv7a-linux-androideabi19-clang"
+          [ -x "$CC" ] || CC="$TC/armv7a-linux-androideabi21-clang"
+          echo "使用编译器: $CC"
           curl -fsSL -o /tmp/busybox.tar.bz2 "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2"
           tar xjf /tmp/busybox.tar.bz2 -C /tmp
           cd "/tmp/busybox-${BUSYBOX_VERSION}"
-          export CC="$TC/armv7a-linux-androideabi21-clang"
+          export CC="$CC"
           export AR="$TC/llvm-ar" NM="$TC/llvm-nm" RANLIB="$TC/llvm-ranlib" \
                  STRIP="$TC/llvm-strip" OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump"
           make defconfig
