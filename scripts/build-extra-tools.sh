@@ -98,6 +98,7 @@ tar -xzf /tmp/onig.tar.gz -C /tmp
 cd /tmp/onig-6.9.9 2>/dev/null || cd /tmp/oniguruma-6.9.9
 ./configure --host="${CROSS%%-}" --prefix=/tmp/onig-install --disable-shared --enable-static \
   CFLAGS="-Wno-error=incompatible-pointer-types"
+perl -i -pe 's/int \(\*\)\(ANYARGS\)/int (*)(st_data_t, st_data_t, st_data_t)/ if /st_foreach/' src/st.h
 make -j2
 make install
 # 8b. jq 1.7.1
