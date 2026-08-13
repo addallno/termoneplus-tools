@@ -88,7 +88,7 @@ tar -xzf /tmp/wget.tar.gz -C /tmp
 cd /tmp/wget-1.24.5
 ./configure --host="${CROSS%%-}" --disable-shared --enable-static \
   --disable-nls --without-ssl --without-libpsl --disable-pcre \
-  --disable-iri --without-libiconv-prefix --without-libintl-prefix
+  --disable-iri --without-libiconv-prefix --without-libintl-prefix --without-zlib
 make -j2
 cp src/wget "$OUT/wget"
 
