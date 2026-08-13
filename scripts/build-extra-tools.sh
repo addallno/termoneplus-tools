@@ -39,10 +39,20 @@ CPPFLAGS="-I/tmp/bsd/include" LDFLAGS="-L/tmp/bsd/lib" \
 make -j2
 make install
 
+# b64_ntop 仅用于 SOCKS5 认证（musl/libbsd 条件下 libbsd 不提供该符号），stub 掉即可
+cat > /tmp/ncbsd_b64stub.c <<'EOF'
+#include <stddef.h>
+#include <stdint.h>
+int b64_ntop(const uint8_t *src, size_t srclength, char *target, size_t targsize) {
+    (void)src; (void)srclength; (void)target; (void)targsize;
+    return -1;
+}
+EOF
+
 ${CROSS}gcc -static -O2 -I/tmp/bsd/include \
   -Wno-incompatible-pointer-types -Wno-implicit-function-declaration \
   -include bsd/stdlib.h \
-  -o "$OUT/nc" /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c \
+  -o "$OUT/nc" /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c /tmp/ncbsd_b64stub.c \
   -L/tmp/bsd/lib -lbsd -lmd
 
 # ---------- 3. ncurses（供 zsh 使用） ----------
