@@ -127,6 +127,14 @@ jobs:
           cp /tmp/release.keystore dist/release.keystore
           cp /tmp/signing.properties dist/signing.properties
 
+      - name: 编译 elf-cleaner
+        run: |
+          set -eux
+          git clone --depth 1 https://github.com/termux/termux-elf-cleaner /tmp/elf-cleaner
+          cmake -S /tmp/elf-cleaner -B /tmp/elf-cleaner/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/elf-cleaner/build -j2
+          sudo install /tmp/elf-cleaner/build/elf-cleaner /usr/local/bin/
+
       - name: 构建 APK
         run: |
           set -eux
