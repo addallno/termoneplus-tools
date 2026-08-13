@@ -85,10 +85,10 @@ echo "micropython: 由用户本地提供，已在 assets 中内置，跳过编�
 # ---------- 6. wget：busybox 自带 http wget + curl(7.68, openssl, https) 已覆盖，不单独编 GNU wget ----------
 echo "wget: 由 busybox 内置(libhttp) + curl(https) 覆盖，跳过编译"
 
-# ---------- 7. micro（Go 编辑器，GOOS=android 交叉编译） ----------
-cd /tmp
-GO111MODULE=on GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 \
-  go install github.com/zyedidia/micro/v2/cmd/micro@v2.0.13
-cp /root/go/bin/micro "$OUT/micro" 2>/dev/null || cp "$(go env GOPATH)/bin/micro" "$OUT/micro"
+# ---------- 7. micro（Go 编辑器，GOOS=android 交叉编译。go install @ver 会因 micro 自带 replace 指令被拒，须本地 build 主模块） ----------
+git clone --depth 1 --branch v2.0.13 https://github.com/zyedidia/micro /tmp/micro
+cd /tmp/micro
+GO111MODULE=on GOFLAGS=-mod=mod GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+  go build -o "$OUT/micro" ./cmd/micro
 
 ls -la "$OUT/"
