@@ -39,8 +39,11 @@ CPPFLAGS="-I/tmp/bsd/include" LDFLAGS="-L/tmp/bsd/lib" \
 make -j2
 make install
 
-${CROSS}gcc -static -O2 -I/tmp/bsd/include -o "$OUT/nc" \
-  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c -L/tmp/bsd/lib -lbsd -lmd
+${CROSS}gcc -static -O2 -I/tmp/bsd/include \
+  -Wno-incompatible-pointer-types -Wno-implicit-function-declaration \
+  -include bsd/stdlib.h \
+  -o "$OUT/nc" /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c \
+  -L/tmp/bsd/lib -lbsd -lmd
 
 # ---------- 3. ncurses（供 zsh 使用） ----------
 curl -fsSL -o /tmp/ncurses.tar.gz https://ftp.gnu.org/gnu/ncurses/ncurses-6.4.tar.gz
