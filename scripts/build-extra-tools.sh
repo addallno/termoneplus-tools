@@ -22,7 +22,7 @@ git clone --depth 1 https://github.com/adamallaf/openbsd-netcat /tmp/nc
 sudo apt-get install -y -qq autoconf automake libtool pkg-config texinfo
 
 # 2a. libmd（提供 MD5Init 等；libbsd 必需）
-git clone --depth 1 --branch 0.1.1 https://github.com/guillemj/libmd /tmp/libmd
+git clone --depth 1 --branch 1.2.0 https://github.com/guillemj/libmd /tmp/libmd
 cd /tmp/libmd
 ./autogen
 ./configure --host="${CROSS%%-}" --prefix=/tmp/bsd --disable-shared --enable-static
