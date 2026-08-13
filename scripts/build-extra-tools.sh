@@ -88,7 +88,7 @@ echo "wget: 由 busybox 内置(libhttp) + curl(https) 覆盖，跳过编译"
 # ---------- 7. micro（Go 编辑器，GOOS=android 交叉编译。go install @ver 会因 micro 自带 replace 指令被拒，须本地 build 主模块） ----------
 git clone --depth 1 --branch v2.0.13 https://github.com/zyedidia/micro /tmp/micro
 cd /tmp/micro
-GO111MODULE=on GOFLAGS=-mod=mod GOOS=android GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+GO111MODULE=on GOFLAGS=-mod=mod GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
   go build -o "$OUT/micro" ./cmd/micro
 
 ls -la "$OUT/"
