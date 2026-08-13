@@ -105,7 +105,7 @@ make install
 curl -fsSL -o /tmp/jq.tar.gz https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-1.7.1.tar.gz
 tar -xzf /tmp/jq.tar.gz -C /tmp
 cd /tmp/jq-1.7.1
-CFLAGS="-I/tmp/onig-install/include" \
+CFLAGS="-I/tmp/onig-install/include -Wno-error=incompatible-pointer-types" \
 LDFLAGS="-static -L/tmp/onig-install/lib" \
 ./configure --host="${CROSS%%-}" --disable-maintainer-mode --disable-shared \
   --with-oniguruma=/tmp/onig-install
