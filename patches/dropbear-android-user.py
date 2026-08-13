@@ -133,6 +133,26 @@ def main():
 """
     patch_file(os.path.join(src, "dbutil.c"), sig2_old, sig2_new, "spawn_command SIGPIPE")
 
+    # 6) compat.c: bionic 头文件把 signal() 宏映射到 bsd_signal()，但该符号在
+    #    静态链接 / 老 API(<21) 目标下缺失。用 sigaction 提供 BSD 语义实现。
+    compat_end = '#endif /* HAVE_HTOLE64 */\n'
+    compat_add = '#endif /* HAVE_HTOLE64 */\n\n' \
+        '/* Android bionic maps signal() -> bsd_signal() but the symbol is\n' \
+        ' * missing for static linking on old (API < 21) targets. Provide it. */\n' \
+        '#ifndef bsd_signal\n' \
+        'sighandler_t bsd_signal(int signum, sighandler_t handler) {\n' \
+        '\tstruct sigaction sa, old;\n' \
+        '\tsa.sa_handler = handler;\n' \
+        '\tsigemptyset(&sa.sa_mask);\n' \
+        '\tsa.sa_flags = SA_RESTART;\n' \
+        '\tif (sigaction(signum, &sa, &old) == -1) {\n' \
+        '\t\treturn SIG_ERR;\n' \
+        '\t}\n' \
+        '\treturn old.sa_handler;\n' \
+        '}\n' \
+        '#endif\n'
+    patch_file(os.path.join(src, "compat.c"), compat_end, compat_add, "bsd_signal impl")
+
     print("all patches applied")
 
 if __name__ == "__main__":
