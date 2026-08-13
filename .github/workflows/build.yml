@@ -57,8 +57,9 @@ jobs:
         run: |
           set -eux
           TC="$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          CC="$TC/armv7a-linux-androideabi19-clang"
-          [ -x "$CC" ] || CC="$TC/armv7a-linux-androideabi21-clang"
+          # busybox 用 API21：missing_syscalls.c 在 __ANDROID_API__<21 会重定义 bionic 已含的 tcdrain
+          CC="$TC/armv7a-linux-androideabi21-clang"
+          [ -x "$CC" ] || CC="$TC/armv7a-linux-androideabi19-clang"
           echo "使用编译器: $CC"
           curl -fsSL -o /tmp/busybox.tar.bz2 "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2"
           tar xjf /tmp/busybox.tar.bz2 -C /tmp
