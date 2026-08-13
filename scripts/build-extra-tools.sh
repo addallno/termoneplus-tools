@@ -15,26 +15,22 @@ tar -xJf /tmp/musl.tar.xz -C /opt
 export PATH="$TC_DIR/bin:$PATH"
 ${CROSS}gcc --version | head -1
 
-# ---------- 2. OpenBSD netcat（多文件；需 libbsd readpassphrase → 用 stub 绕过） ----------
+# ---------- 2. OpenBSD netcat（依赖 libbsd → 交叉编译静态 libbsd） ----------
 git clone --depth 1 https://github.com/adamallaf/openbsd-netcat /tmp/nc
-mkdir -p /tmp/ncbsd/bsd
-cat > /tmp/ncbsd/bsd/readpassphrase.h <<'EOF'
-#ifndef _READPASSPHRASE_H
-#define _READPASSPHRASE_H
-#include <sys/types.h>
-char *readpassphrase(const char *, char *, size_t, int);
-#endif
-EOF
-cat > /tmp/ncbsd/readpassphrase.c <<'EOF'
-#include <stddef.h>
-#include "bsd/readpassphrase.h"
-char *readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags) {
-    (void)prompt; (void)buf; (void)bufsiz; (void)flags;
-    return NULL;
-}
-EOF
-${CROSS}gcc -static -O2 -I/tmp/ncbsd -o "$OUT/nc" \
-  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c /tmp/ncbsd/readpassphrase.c
+sudo apt-get update -qq || true
+sudo apt-get install -y -qq autoconf automake libtool pkg-config texinfo
+curl -fSL --connect-timeout 30 --retry 3 -o /tmp/libbsd.tar.gz \
+  https://github.com/guillemj/libbsd/archive/refs/tags/0.12.2.tar.gz
+tar -xzf /tmp/libbsd.tar.gz -C /tmp
+cd /tmp/libbsd-0.12.2
+./autogen.sh
+./configure --host="${CROSS%%-}" --prefix=/tmp/bsd \
+  --disable-shared --enable-static --without-libmd
+make -j2
+make install
+${CROSS}gcc -static -O2 -I/tmp/bsd/include -o "$OUT/nc" \
+  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c \
+  -L/tmp/bsd/lib -lbsd
 
 # ---------- 3. bash（--enable-static-link 静态链接） ----------
 curl -fsSL -o /tmp/bash.tar.gz https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
