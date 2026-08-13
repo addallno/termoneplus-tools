@@ -67,6 +67,13 @@ jobs:
           export AR="$TC/llvm-ar" NM="$TC/llvm-nm" RANLIB="$TC/llvm-ranlib" \
                  STRIP="$TC/llvm-strip" OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump"
           make defconfig
+          if [ -f configs/android_ndk_defconfig ]; then
+            echo "使用 android_ndk_defconfig（已禁用 NDK 不兼容 applet）"
+            make android_ndk_defconfig
+          else
+            echo "无 android_ndk_defconfig，defconfig 并关闭 tc（NDK 头文件缺 TCA_CBQ_*）"
+            sed -i 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' .config
+          fi
           sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
           sed -i 's/# CONFIG_ANDROID is not set/CONFIG_ANDROID=y/' .config
           make -j2 busybox
