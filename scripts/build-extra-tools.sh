@@ -93,9 +93,9 @@ GO111MODULE=on GOFLAGS=-mod=mod GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
 
 # ---------- 8. jq（JSON 处理，依赖 oniguruma，全静态） ----------
 # 8a. oniguruma 6.9.9
-curl -fsSL -o /tmp/onig.tar.gz https://github.com/kkos/oniguruma/releases/download/v6.9.9/oniguruma-6.9.9.tar.gz
+curl -fsSL -o /tmp/onig.tar.gz https://github.com/kkos/oniguruma/releases/download/v6.9.9/onig-6.9.9.tar.gz
 tar -xzf /tmp/onig.tar.gz -C /tmp
-cd /tmp/oniguruma-6.9.9
+cd /tmp/onig-6.9.9 2>/dev/null || cd /tmp/oniguruma-6.9.9
 ./configure --host="${CROSS%%-}" --prefix=/tmp/onig-install --disable-shared --enable-static
 make -j2
 make install
