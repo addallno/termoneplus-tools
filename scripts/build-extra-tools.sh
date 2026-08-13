@@ -3,16 +3,15 @@
 # 输出目录 /tmp/extra-tools/，由「组装工具 assets」step 拷入 assets/tools/usr/bin/
 set -eux
 
-CROSS=arm-linux-musleabihf-
-TC_DIR=/opt/arm-linux-musleabihf-cross
+CROSS=armv7-unknown-linux-musleabihf-
+TC_DIR=/opt/armv7-unknown-linux-musleabihf
 OUT=/tmp/extra-tools
-SYSROOT="$TC_DIR/arm-linux-musleabihf"
 mkdir -p "$OUT"
 
-# ---------- 1. musl 交叉工具链 ----------
-curl -fSL --connect-timeout 20 --retry 6 --retry-delay 5 \
-  -o /tmp/musl.tgz https://musl.cc/arm-linux-musleabihf-cross.tgz
-tar -xzf /tmp/musl.tgz -C /opt
+# ---------- 1. musl 交叉工具链（GitHub release，musl.cc 已被 GH Actions 封禁） ----------
+curl -fSL --connect-timeout 30 --retry 3 --retry-delay 5 \
+  -o /tmp/musl.tar.xz https://github.com/cross-tools/musl-cross/releases/download/20260515/armv7-unknown-linux-musleabihf.tar.xz
+tar -xJf /tmp/musl.tar.xz -C /opt
 export PATH="$TC_DIR/bin:$PATH"
 ${CROSS}gcc --version | head -1
 
