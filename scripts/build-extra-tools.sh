@@ -70,6 +70,8 @@ make install
 curl -fsSL -o /tmp/zsh.tar.xz https://sourceforge.net/projects/zsh/files/zsh/5.9/zsh-5.9.tar.xz/download
 tar -xJf /tmp/zsh.tar.xz -C /tmp
 cd /tmp/zsh-5.9
+# zsh 5.9 自带 boolcodes/numcodes/strcodes 有与 ncurses term.h(const) 冲突类型，禁用自含定义改用 ncurses 提供的
+sed -i 's/#ifndef HAVE_BOOLCODES/#if 0/; s/#ifndef HAVE_NUMCODES/#if 0/; s/#ifndef HAVE_STRCODES/#if 0/' Src/Modules/termcap.c
 CPPFLAGS="-I/tmp/ncurses-install/include" \
 LDFLAGS="-static -L/tmp/ncurses-install/lib" \
 ./configure --host="${CROSS%%-}" --disable-dynamic --disable-gdbm \
