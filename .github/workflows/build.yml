@@ -50,8 +50,8 @@ jobs:
             CC="$CC" AR="$AR" RANLIB="$RANLIB" STRIP="$STRIP" \
             CFLAGS="-O2 -static" LDFLAGS="-static" \
             CPPFLAGS="-DDROPBEAR_SVR_PASSWORD_AUTH=0"
-          make -j2 dropbear dropbearkey
-          file dropbear dropbearkey
+          make -j2 dropbear dropbearkey dbclient
+          file dropbear dropbearkey dbclient
 
       - name: 编译 busybox
         run: |
@@ -84,6 +84,9 @@ jobs:
           sed -i 's/^CONFIG_EXTRA_LDFLAGS=.*/CONFIG_EXTRA_LDFLAGS=""/' .config
           # FEATURE_COMPRESS_USAGE 需 host 编译 usage_compressed(依赖宿主 zlib)，交叉编译易失败，关闭
           sed -i 's/^CONFIG_FEATURE_COMPRESS_USAGE=y$/# CONFIG_FEATURE_COMPRESS_USAGE is not set/' .config
+          # 兜底开启 HTTPD/FTPD（盒子文件传输用；android_ndk_defconfig 可能因版本差异关闭）
+          sed -i 's/^# CONFIG_HTTPD is not set$/CONFIG_HTTPD=y/' .config
+          sed -i 's/^# CONFIG_FTPD is not set$/CONFIG_FTPD=y/' .config
           # busybox Makefile 用 "CC=$(CROSS_COMPILE)gcc" 覆盖环境变量，须命令行传 CC/CROSS_COMPILE= 
           make -j2 busybox CROSS_COMPILE= \
             CC="$CC" \
@@ -96,14 +99,28 @@ jobs:
           set -eux
           bash scripts/build-extra-tools.sh
 
+      - name: 下载 ffmpeg 预编译 (armv7a)
+        run: |
+          set -eux
+          mkdir -p /tmp/ffmpeg
+          # Khang-NT/ffmpeg-binary-android 的 armeabi-v7a LITE 版（2018 构建，支持 Android 16+，适合 API19 盒子）
+          curl -fSL --connect-timeout 60 --retry 5 --retry-delay 5 \
+            -o /tmp/ffmpeg.tar.bz2 \
+            "https://github.com/Khang-NT/ffmpeg-binary-android/releases/download/2018-07-31/arm-lite.tar.bz2"
+          tar xjf /tmp/ffmpeg.tar.bz2 -C /tmp/ffmpeg
+          find /tmp/ffmpeg -name "ffmpeg" -o -name "ffprobe" | head
+
       - name: 组装工具 assets
         run: |
           set -eux
           mkdir -p "term/src/main/assets/tools/usr/bin"
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbear"    "term/src/main/assets/tools/usr/bin/dropbear"
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbearkey" "term/src/main/assets/tools/usr/bin/dropbearkey"
+          cp "/tmp/dropbear-${DROPBEAR_VERSION}/dbclient"    "term/src/main/assets/tools/usr/bin/dbclient"
           cp "/tmp/busybox-${BUSYBOX_VERSION}/busybox"       "term/src/main/assets/tools/usr/bin/busybox"
           cp /tmp/extra-tools/*                              "term/src/main/assets/tools/usr/bin/"
+          # ffmpeg 预编译产物（找 ffmpeg/ffprobe 二进制拷入；tar 内可能有目录结构）
+          find /tmp/ffmpeg \( -name "ffmpeg" -o -name "ffprobe" \) -type f -exec cp {} "term/src/main/assets/tools/usr/bin/" \;
           ls -la "term/src/main/assets/tools/usr/bin/"
 
       - name: 签名配置

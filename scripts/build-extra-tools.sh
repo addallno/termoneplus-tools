@@ -91,4 +91,29 @@ cd /tmp/micro
 GO111MODULE=on GOFLAGS=-mod=mod GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
   go build -o "$OUT/micro" ./cmd/micro
 
+# ---------- 8. jq（JSON 处理，依赖 oniguruma，全静态） ----------
+# 8a. oniguruma 6.9.9
+curl -fsSL -o /tmp/onig.tar.gz https://github.com/kkos/oniguruma/releases/download/v6.9.9/oniguruma-6.9.9.tar.gz
+tar -xzf /tmp/onig.tar.gz -C /tmp
+cd /tmp/oniguruma-6.9.9
+./configure --host="${CROSS%%-}" --prefix=/tmp/onig-install --disable-shared --enable-static
+make -j2
+make install
+# 8b. jq 1.7.1
+curl -fsSL -o /tmp/jq.tar.gz https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-1.7.1.tar.gz
+tar -xzf /tmp/jq.tar.gz -C /tmp
+cd /tmp/jq-1.7.1
+CFLAGS="-I/tmp/onig-install/include" \
+LDFLAGS="-static -L/tmp/onig-install/lib" \
+./configure --host="${CROSS%%-}" --disable-maintainer-mode --disable-shared \
+  --with-oniguruma=/tmp/onig-install
+make -j2
+cp jq "$OUT/jq"
+
+# ---------- 9. yq（YAML 处理，Go 编译） ----------
+git clone --depth 1 --branch v4.44.3 https://github.com/mikefarah/yq /tmp/yq
+cd /tmp/yq
+GO111MODULE=on GOFLAGS=-mod=mod GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+  go build -o "$OUT/yq" .
+
 ls -la "$OUT/"

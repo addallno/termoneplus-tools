@@ -26,7 +26,8 @@ public class ToolInstaller {
 
     private static final String TAG = "ToolInstaller";
 
-    public static final int SSH_PORT = 8023;
+    public static final String CONFIG_FILE_NAME = "termtools.conf";
+    public static final int DEFAULT_SSH_PORT = 8023;
 
     /* ---- 目录布局 ---- */
 
@@ -66,6 +67,72 @@ public class ToolInstaller {
         return new File(getBinDir(ctx), "dropbear");
     }
 
+    public static File getConfigFile(Context ctx) {
+        return new File(getPrefix(ctx), "etc/termtools.conf");
+    }
+
+    /* ---- 配置读写 ---- */
+
+    /** 读取 termtools.conf 中的 KEY=VALUE（# 注释，忽略空行） */
+    private static String getConfig(Context ctx, String key, String def) {
+        File conf = getConfigFile(ctx);
+        if (conf.exists()) {
+            try {
+                for (String line : new String(readAll(conf), "UTF-8").split("\n")) {
+                    line = line.trim();
+                    if (line.isEmpty() || line.startsWith("#"))
+                        continue;
+                    int eq = line.indexOf('=');
+                    if (eq > 0 && line.substring(0, eq).trim().equals(key))
+                        return line.substring(eq + 1).trim();
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return def;
+    }
+
+    public static int getSshPort(Context ctx) {
+        String v = getConfig(ctx, "SSH_PORT", String.valueOf(DEFAULT_SSH_PORT));
+        try {
+            return Integer.parseInt(v);
+        } catch (NumberFormatException e) {
+            return DEFAULT_SSH_PORT;
+        }
+    }
+
+    public static boolean isAutoStartSsh(Context ctx) {
+        String v = getConfig(ctx, "AUTO_START_SSH", "1");
+        return v.equals("1") || v.equalsIgnoreCase("yes") || v.equalsIgnoreCase("true");
+    }
+
+    /** 首次安装写入默认配置（已存在则保留用户修改） */
+    private static void ensureConfigFile(Context ctx) throws IOException {
+        File conf = getConfigFile(ctx);
+        if (conf.exists())
+            return;
+        ensureDir(conf.getParentFile());
+        String content = "# TermTools 配置文件（KEY=VALUE，行首 # 为注释）\n"
+                + "# SSH 服务监听端口\n"
+                + "SSH_PORT=" + DEFAULT_SSH_PORT + "\n"
+                + "# 打开 app 时是否自动启动 SSH 服务（1=启动, 0=不启动）\n"
+                + "AUTO_START_SSH=1\n";
+        OutputStream os = new FileOutputStream(conf);
+        os.write(content.getBytes("UTF-8"));
+        os.close();
+    }
+
+    private static byte[] readAll(File f) throws IOException {
+        InputStream is = new java.io.FileInputStream(f);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = is.read(buf)) > 0)
+            bos.write(buf, 0, n);
+        is.close();
+        return bos.toByteArray();
+    }
+
     /* ---- 安装流程（幂等）---- */
 
     public static boolean install(final Context ctx) {
@@ -78,10 +145,25 @@ public class ToolInstaller {
             ensureDir(bin);
             ensureDir(etc);
 
-            // 1) 解压 assets/tools（usr 目录树）→ $PREFIX
+            // 0) 默认配置文件（首次生成，已存在保留用户修改）
+            ensureConfigFile(ctx);
+
+            // 1) busybox --install -s 生成 applet 符号链接（先装，避免覆盖资产的完整工具）
+            File busybox = getBusybox(ctx);
+            if (busybox.exists()) {
+                java.lang.Process p = new ProcessBuilder(busybox.getAbsolutePath(),
+                        "--install", "-s", bin.getAbsolutePath())
+                        .redirectErrorStream(true).start();
+                p.waitFor();
+            }
+
+            // 2) 解压 assets/tools（usr 目录树）→ $PREFIX。
+            //    放在 busybox --install 之后：assets 里的完整工具（unzip/ping/tree/
+            //    hexdump/openssl/rsync/traceroute/strings/file 等是 busybox 同名 applet，
+            //    会被符号链接覆盖）以真实文件覆盖回符号链接，保证完整版优先。
             extractTools(ctx.getAssets(), getPrefix(ctx));
 
-            // 2) authorized_keys → $HOME/.ssh/authorized_keys
+            // 3) authorized_keys → $HOME/.ssh/authorized_keys
             File auth = new File(new File(home, ".ssh"), "authorized_keys");
             if (!auth.exists()) {
                 ensureDir(new File(home, ".ssh"));
@@ -91,23 +173,18 @@ public class ToolInstaller {
                 auth.setExecutable(false);
             }
 
-            // 3) busybox --install -s 生成 applet 符号链接
-            File busybox = getBusybox(ctx);
-            if (busybox.exists()) {
-                java.lang.Process p = new ProcessBuilder(busybox.getAbsolutePath(),
-                        "--install", "-s", bin.getAbsolutePath())
-                        .redirectErrorStream(true).start();
-                p.waitFor();
-            }
-
             // 4) 写 start_ssh.sh 并加执行位
             writeStartScript(ctx);
 
-            // 5) 启动 dropbear（脚本内幂等：先杀旧实例再启）
-            java.lang.Process p = new ProcessBuilder("/system/bin/sh", getStartScript(ctx).getAbsolutePath())
-                    .redirectErrorStream(true).start();
-            // 不等待：dropbear 自行 daemonize 后台常驻
-            Log.i(TAG, "ssh service started on port " + SSH_PORT);
+            // 5) 按配置决定是否启动 dropbear
+            if (isAutoStartSsh(ctx)) {
+                java.lang.Process p = new ProcessBuilder("/system/bin/sh", getStartScript(ctx).getAbsolutePath())
+                        .redirectErrorStream(true).start();
+                // 不等待：dropbear 自行 daemonize 后台常驻
+                Log.i(TAG, "ssh service started on port " + getSshPort(ctx));
+            } else {
+                Log.i(TAG, "AUTO_START_SSH=0, 跳过启动 SSH");
+            }
             return true;
         } catch (Exception e) {
             Log.e(TAG, "install failed", e);
@@ -119,8 +196,6 @@ public class ToolInstaller {
 
     private static void writeStartScript(Context ctx) throws IOException {
         File script = getStartScript(ctx);
-        if (script.exists() && script.length() > 0)
-            return;
 
         String home = getHomeDir(ctx).getAbsolutePath();
         String prefix = getPrefix(ctx).getAbsolutePath();
@@ -128,10 +203,11 @@ public class ToolInstaller {
         String pidfile = getPidFile(ctx).getAbsolutePath();
         String dropbear = getDropbear(ctx).getAbsolutePath();
         String dropbearkey = new File(getBinDir(ctx), "dropbearkey").getAbsolutePath();
+        int port = getSshPort(ctx);
 
         StringBuilder sb = new StringBuilder();
         sb.append("#!/system/bin/sh\n");
-        sb.append("# 启动/重启 dropbear SSH 服务（幂等）\n");
+        sb.append("# 启动/重启 dropbear SSH 服务（幂等）。端口取自 ").append(getConfigFile(ctx).getAbsolutePath()).append("\n");
         sb.append("export HOME=").append(home).append("\n");
         sb.append("export PREFIX=").append(prefix).append("\n");
         sb.append("export PATH=$PREFIX/bin:/system/bin:/system/xbin:$HOME:$HOME/cmd:$PATH\n");
@@ -152,7 +228,7 @@ public class ToolInstaller {
         sb.append("  rm -f \"$PIDFILE\"\n");
         sb.append("fi\n");
         sb.append("\n");
-        sb.append("").append(dropbear).append(" -s -p ").append(SSH_PORT)
+        sb.append("").append(dropbear).append(" -s -p ").append(port)
                 .append(" -r \"$HOSTKEY\" -P \"$PIDFILE\"\n");
 
         PrintWriter out = new PrintWriter(script);
