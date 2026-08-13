@@ -133,6 +133,16 @@ public class Application extends android.app.Application {
         }
 
         Installer.installAppScriptFile();
+
+        // 后台安装内置工具（dropbear/busybox）并启动 SSH 服务，幂等，不阻塞 UI
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ToolInstaller.install(Application.this);
+            }
+        }, "tool-installer");
+        t.setDaemon(true);
+        t.start();
     }
 
     private void setupPreferences() {

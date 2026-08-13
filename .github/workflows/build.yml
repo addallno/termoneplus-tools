@@ -1,0 +1,120 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DROPBEAR_VERSION: "2026.94"
+      BUSYBOX_VERSION: "1.36.1"
+      NDK_VERSION: "23.2.8568313"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Android SDK / NDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK 组件
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" \
+            "platforms;android-36" \
+            "build-tools;37.0.0" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;3.22.1"
+
+      - name: 编译 dropbear
+        run: |
+          set -eux
+          TC="$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          curl -fsSL -o /tmp/dropbear.tar.bz2 "https://dropbear.nl/mirror/releases/dropbear-${DROPBEAR_VERSION}.tar.bz2"
+          tar xjf /tmp/dropbear.tar.bz2 -C /tmp
+          python3 "patches/dropbear-android-user.py" "/tmp/dropbear-${DROPBEAR_VERSION}/src"
+          cd "/tmp/dropbear-${DROPBEAR_VERSION}"
+          export CC="$TC/armv7a-linux-androideabi21-clang"
+          export AR="$TC/llvm-ar" RANLIB="$TC/llvm-ranlib" STRIP="$TC/llvm-strip"
+          ./configure --host=arm-linux-androideabi \
+            --disable-zlib --disable-pam --disable-shadow \
+            CC="$CC" AR="$AR" RANLIB="$RANLIB" STRIP="$STRIP" \
+            CFLAGS="-O2 -static" LDFLAGS="-static"
+          make -j2 dropbear dropbearkey dbclient
+          file dropbear dropbearkey dbclient
+
+      - name: 编译 busybox
+        run: |
+          set -eux
+          TC="$ANDROID_HOME/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          curl -fsSL -o /tmp/busybox.tar.bz2 "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2"
+          tar xjf /tmp/busybox.tar.bz2 -C /tmp
+          cd "/tmp/busybox-${BUSYBOX_VERSION}"
+          export CC="$TC/armv7a-linux-androideabi21-clang"
+          export AR="$TC/llvm-ar" NM="$TC/llvm-nm" RANLIB="$TC/llvm-ranlib" \
+                 STRIP="$TC/llvm-strip" OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump"
+          make defconfig
+          sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
+          sed -i 's/# CONFIG_ANDROID is not set/CONFIG_ANDROID=y/' .config
+          make -j2 busybox
+          file busybox
+
+      - name: 组装工具 assets
+        run: |
+          set -eux
+          mkdir -p "term/src/main/assets/tools/usr/bin"
+          cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbear"    "term/src/main/assets/tools/usr/bin/dropbear"
+          cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbearkey" "term/src/main/assets/tools/usr/bin/dropbearkey"
+          cp "/tmp/dropbear-${DROPBEAR_VERSION}/dbclient"    "term/src/main/assets/tools/usr/bin/dbclient"
+          cp "/tmp/busybox-${BUSYBOX_VERSION}/busybox"       "term/src/main/assets/tools/usr/bin/busybox"
+          ls -la "term/src/main/assets/tools/usr/bin/"
+
+      - name: 签名配置
+        run: |
+          set -eux
+          mkdir -p dist
+          if [ -n "${{ secrets.KEYSTORE_B64 }}" ] && [ -n "${{ secrets.KEYSTORE_PASS }}" ]; then
+            echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > /tmp/release.keystore
+            STORE_PASS="${{ secrets.KEYSTORE_PASS }}"
+            echo "使用持久化签名密钥"
+          else
+            STORE_PASS="termtools-ci-2026"
+            keytool -genkeypair -v \
+              -keystore /tmp/release.keystore \
+              -alias termtools \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
+              -dname "CN=TermTools, OU=Tools, O=TermTools, L=Unknown, ST=Unknown, C=CN"
+            echo "使用 CI 临时签名密钥（上传产物以保存，可固化到 secrets）"
+          fi
+          {
+            echo "store.file=/tmp/release.keystore"
+            echo "store.password=$STORE_PASS"
+            echo "key.alias=termtools"
+            echo "key.password=$STORE_PASS"
+          } > /tmp/signing.properties
+          cp /tmp/release.keystore dist/release.keystore
+          cp /tmp/signing.properties dist/signing.properties
+
+      - name: 构建 APK
+        run: |
+          set -eux
+          ./gradlew :term:assembleFullRelease -Psigning.properties=/tmp/signing.properties
+
+      - name: 组装发布目录
+        run: |
+          set -eux
+          cp term/build/outputs/apk/full/release/*.apk dist/
+          ls -la dist/
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: termtools-box-release
+          path: dist/
