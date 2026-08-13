@@ -10,7 +10,8 @@ SYSROOT="$TC_DIR/arm-linux-musleabihf"
 mkdir -p "$OUT"
 
 # ---------- 1. musl 交叉工具链 ----------
-curl -fsSL -o /tmp/musl.tgz https://musl.cc/arm-linux-musleabihf-cross.tgz
+curl -fSL --connect-timeout 20 --retry 6 --retry-delay 5 \
+  -o /tmp/musl.tgz https://musl.cc/arm-linux-musleabihf-cross.tgz
 tar -xzf /tmp/musl.tgz -C /opt
 export PATH="$TC_DIR/bin:$PATH"
 ${CROSS}gcc --version | head -1
