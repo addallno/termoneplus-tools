@@ -19,10 +19,8 @@ ${CROSS}gcc --version | head -1
 git clone --depth 1 https://github.com/adamallaf/openbsd-netcat /tmp/nc
 sudo apt-get update -qq || true
 sudo apt-get install -y -qq autoconf automake libtool pkg-config texinfo
-curl -fSL --connect-timeout 30 --retry 3 -o /tmp/libbsd.tar.gz \
-  https://github.com/guillemj/libbsd/archive/refs/tags/0.12.2.tar.gz
-tar -xzf /tmp/libbsd.tar.gz -C /tmp
-cd /tmp/libbsd-0.12.2
+git clone --depth 1 --branch 0.12.2 https://github.com/guillemj/libbsd /tmp/libbsd
+cd /tmp/libbsd
 ./autogen
 ./configure --host="${CROSS%%-}" --prefix=/tmp/bsd \
   --disable-shared --enable-static --without-libmd
