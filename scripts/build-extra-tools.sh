@@ -82,15 +82,8 @@ cp Src/zsh "$OUT/zsh"
 # ---------- 5. micropython：使用本地现成静态版(assets 已内置)，无需 CI 编译 ----------
 echo "micropython: 由用户本地提供，已在 assets 中内置，跳过编译"
 
-# ---------- 6. wget（GNU wget，--disable-* 减依赖后静态） ----------
-curl -fsSL -o /tmp/wget.tar.gz https://ftp.gnu.org/gnu/wget/wget-1.24.5.tar.gz
-tar -xzf /tmp/wget.tar.gz -C /tmp
-cd /tmp/wget-1.24.5
-./configure --host="${CROSS%%-}" --disable-shared --enable-static \
-  --disable-nls --without-ssl --without-libpsl --disable-pcre \
-  --disable-iri --without-libiconv-prefix --without-libintl-prefix --without-zlib
-make -j2
-cp src/wget "$OUT/wget"
+# ---------- 6. wget：busybox 自带 http wget + curl(7.68, openssl, https) 已覆盖，不单独编 GNU wget ----------
+echo "wget: 由 busybox 内置(libhttp) + curl(https) 覆盖，跳过编译"
 
 # ---------- 7. micro（Go 编辑器，GOOS=android 交叉编译） ----------
 cd /tmp
