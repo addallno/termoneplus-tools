@@ -45,7 +45,8 @@ jobs:
           ./configure --host=arm-linux-androideabi \
             --disable-zlib --disable-pam --disable-shadow \
             CC="$CC" AR="$AR" RANLIB="$RANLIB" STRIP="$STRIP" \
-            CFLAGS="-O2 -static" LDFLAGS="-static"
+            CFLAGS="-O2 -static" LDFLAGS="-static" \
+            CPPFLAGS="-DDROPBEAR_SVR_PASSWORD_AUTH=0"
           make -j2 dropbear dropbearkey dbclient
           file dropbear dropbearkey dbclient
 
