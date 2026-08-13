@@ -91,6 +91,11 @@ jobs:
             STRIP="$TC/llvm-strip" OBJCOPY="$TC/llvm-objcopy" OBJDUMP="$TC/llvm-objdump"
           file busybox
 
+      - name: 编译附加工具 (musl 静态)
+        run: |
+          set -eux
+          bash scripts/build-extra-tools.sh
+
       - name: 组装工具 assets
         run: |
           set -eux
@@ -98,6 +103,7 @@ jobs:
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbear"    "term/src/main/assets/tools/usr/bin/dropbear"
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbearkey" "term/src/main/assets/tools/usr/bin/dropbearkey"
           cp "/tmp/busybox-${BUSYBOX_VERSION}/busybox"       "term/src/main/assets/tools/usr/bin/busybox"
+          cp /tmp/extra-tools/*                              "term/src/main/assets/tools/usr/bin/"
           ls -la "term/src/main/assets/tools/usr/bin/"
 
       - name: 签名配置
