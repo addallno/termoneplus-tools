@@ -79,12 +79,8 @@ LDFLAGS="-static -L/tmp/ncurses-install/lib" \
 make -j2
 cp Src/zsh "$OUT/zsh"
 
-# ---------- 5. micropython（unix port minimal，无外部依赖） ----------
-git clone --depth 1 --branch v1.23.0 https://github.com/micropython/micropython /tmp/micropython
-cd /tmp/micropython
-make -C mpy-cross -j2
-make -C ports/unix VARIANT=minimal CROSS_COMPILE="$CROSS" LDFLAGS="-static" -j2
-cp ports/unix/build-minimal/micropython "$OUT/micropython"
+# ---------- 5. micropython：使用本地现成静态版(assets 已内置)，无需 CI 编译 ----------
+echo "micropython: 由用户本地提供，已在 assets 中内置，跳过编译"
 
 # ---------- 6. wget（GNU wget，--disable-* 减依赖后静态） ----------
 curl -fsSL -o /tmp/wget.tar.gz https://ftp.gnu.org/gnu/wget/wget-1.24.5.tar.gz
