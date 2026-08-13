@@ -61,7 +61,8 @@ tar -xzf /tmp/ncurses.tar.gz -C /tmp
 cd /tmp/ncurses-6.4
 ./configure --host="${CROSS%%-}" --prefix=/tmp/ncurses-install \
   --enable-static --disable-shared --without-debug --without-ada \
-  --without-cxx --without-manpages --without-tests --without-pkg-config
+  --without-cxx --without-manpages --without-tests --without-pkg-config \
+  --without-progs
 make -j2
 make install
 
