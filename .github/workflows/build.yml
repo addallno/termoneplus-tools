@@ -74,8 +74,9 @@ jobs:
           fi
           sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
           sed -i 's/# CONFIG_ANDROID is not set/CONFIG_ANDROID=y/' .config
-          # android_ndk_defconfig 内置 EXTRA_CFLAGS 含 gcc 专属参数(-mthumb-interwork/-frename-registers/-fuse-ld=bfd)，clang 不认
-          sed -i '/^CONFIG_EXTRA_CFLAGS=/d' .config
+          # android_ndk_defconfig 内置 EXTRA_CFLAGS 含 gcc 专属参数(-mthumb-interwork/-frename-registers/-fuse-ld=bfd)，clang 不认；
+          # 替换为空字符串保留符号，否则 silentoldconfig 对 string 类型 NEW 符号在 stdin EOF 时 abort
+          sed -i 's/^CONFIG_EXTRA_CFLAGS=.*/CONFIG_EXTRA_CFLAGS="-DANDROID -D__ANDROID__"/' .config
           # FEATURE_COMPRESS_USAGE 需 host 编译 usage_compressed(依赖宿主 zlib)，交叉编译易失败，关闭
           sed -i 's/^CONFIG_FEATURE_COMPRESS_USAGE=y$/# CONFIG_FEATURE_COMPRESS_USAGE is not set/' .config
           # busybox Makefile 用 "CC=$(CROSS_COMPILE)gcc" 覆盖环境变量，须命令行传 CC/CROSS_COMPILE= 
