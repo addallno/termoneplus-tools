@@ -94,7 +94,7 @@ public class ToolInstaller {
             // 3) busybox --install -s 生成 applet 符号链接
             File busybox = getBusybox(ctx);
             if (busybox.exists()) {
-                Process p = new ProcessBuilder(busybox.getAbsolutePath(),
+                java.lang.Process p = new ProcessBuilder(busybox.getAbsolutePath(),
                         "--install", "-s", bin.getAbsolutePath())
                         .redirectErrorStream(true).start();
                 p.waitFor();
@@ -104,7 +104,7 @@ public class ToolInstaller {
             writeStartScript(ctx);
 
             // 5) 启动 dropbear（脚本内幂等：先杀旧实例再启）
-            Process p = new ProcessBuilder("/system/bin/sh", getStartScript(ctx).getAbsolutePath())
+            java.lang.Process p = new ProcessBuilder("/system/bin/sh", getStartScript(ctx).getAbsolutePath())
                     .redirectErrorStream(true).start();
             // 不等待：dropbear 自行 daemonize 后台常驻
             Log.i(TAG, "ssh service started on port " + SSH_PORT);
