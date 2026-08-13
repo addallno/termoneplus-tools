@@ -47,8 +47,8 @@ jobs:
             CC="$CC" AR="$AR" RANLIB="$RANLIB" STRIP="$STRIP" \
             CFLAGS="-O2 -static" LDFLAGS="-static" \
             CPPFLAGS="-DDROPBEAR_SVR_PASSWORD_AUTH=0"
-          make -j2 dropbear dropbearkey dbclient
-          file dropbear dropbearkey dbclient
+          make -j2 dropbear dropbearkey
+          file dropbear dropbearkey
 
       - name: 编译 busybox
         run: |
@@ -72,7 +72,6 @@ jobs:
           mkdir -p "term/src/main/assets/tools/usr/bin"
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbear"    "term/src/main/assets/tools/usr/bin/dropbear"
           cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbearkey" "term/src/main/assets/tools/usr/bin/dropbearkey"
-          cp "/tmp/dropbear-${DROPBEAR_VERSION}/dbclient"    "term/src/main/assets/tools/usr/bin/dbclient"
           cp "/tmp/busybox-${BUSYBOX_VERSION}/busybox"       "term/src/main/assets/tools/usr/bin/busybox"
           ls -la "term/src/main/assets/tools/usr/bin/"
 
