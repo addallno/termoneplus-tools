@@ -96,7 +96,8 @@ GO111MODULE=on GOFLAGS=-mod=mod GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
 curl -fsSL -o /tmp/onig.tar.gz https://github.com/kkos/oniguruma/releases/download/v6.9.9/onig-6.9.9.tar.gz
 tar -xzf /tmp/onig.tar.gz -C /tmp
 cd /tmp/onig-6.9.9 2>/dev/null || cd /tmp/oniguruma-6.9.9
-./configure --host="${CROSS%%-}" --prefix=/tmp/onig-install --disable-shared --enable-static
+./configure --host="${CROSS%%-}" --prefix=/tmp/onig-install --disable-shared --enable-static \
+  CFLAGS="-Wno-error=incompatible-pointer-types"
 make -j2
 make install
 # 8b. jq 1.7.1
