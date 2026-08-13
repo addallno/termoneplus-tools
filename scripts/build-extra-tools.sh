@@ -17,17 +17,30 @@ tar -xJf /tmp/musl.tar.xz -C /opt
 export PATH="$TC_DIR/bin:$PATH"
 ${CROSS}gcc --version | head -1
 
-# ---------- 2. OpenBSD netcat（依赖 libbsd → 交叉编译静态 libbsd） ----------
+# ---------- 2. OpenBSD netcat（依赖 libbsd；libbsd 依赖 libmd 提供 MD5，musl 无 MD5） ----------
 git clone --depth 1 https://github.com/adamallaf/openbsd-netcat /tmp/nc
 sudo apt-get install -y -qq autoconf automake libtool pkg-config texinfo
+
+# 2a. libmd（提供 MD5Init 等；libbsd 必需）
+git clone --depth 1 --branch 0.1.1 https://github.com/guillemj/libmd /tmp/libmd
+cd /tmp/libmd
+./autogen
+./configure --host="${CROSS%%-}" --prefix=/tmp/bsd --disable-shared --enable-static
+make -j2
+make install
+
+# 2b. libbsd
 git clone --depth 1 --branch 0.12.2 https://github.com/guillemj/libbsd /tmp/libbsd
 cd /tmp/libbsd
 ./autogen
-./configure --host="${CROSS%%-}" --prefix=/tmp/bsd --disable-shared --enable-static --without-libmd
+CPPFLAGS="-I/tmp/bsd/include" LDFLAGS="-L/tmp/bsd/lib" \
+./configure --host="${CROSS%%-}" --prefix=/tmp/bsd \
+  --disable-shared --enable-static --with-libmd
 make -j2
 make install
+
 ${CROSS}gcc -static -O2 -I/tmp/bsd/include -o "$OUT/nc" \
-  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c -L/tmp/bsd/lib -lbsd
+  /tmp/nc/netcat.c /tmp/nc/atomicio.c /tmp/nc/socks.c -L/tmp/bsd/lib -lbsd -lmd
 
 # ---------- 3. ncurses（供 zsh 使用） ----------
 curl -fsSL -o /tmp/ncurses.tar.gz https://ftp.gnu.org/gnu/ncurses/ncurses-6.4.tar.gz
