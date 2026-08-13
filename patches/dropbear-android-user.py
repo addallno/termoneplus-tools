@@ -102,6 +102,37 @@ def main():
     shells_new = '#define COMPAT_USER_SHELLS "/system/bin/sh"\n'
     patch_file(os.path.join(src, "sysoptions.h"), shells_old, shells_new, "COMPAT_USER_SHELLS")
 
+    # 5) dbutil.c: bionic 在目标 API<21 下 signal() 不可靠（头文件可能把 signal
+    #    宏映射到 bsd_signal 且无实现），改用 POSIX sigaction()（API 1 即有）。
+    sig1_old = """\t\tif (signal(SIGCHLD, SIG_DFL) == SIG_ERR) {
+\t\t\tdropbear_exit("signal() error");
+\t\t}
+"""
+    sig1_new = """\t\t{
+\t\t\tstruct sigaction sa = {0};
+\t\t\tsa.sa_handler = SIG_DFL;
+\t\t\tif (sigaction(SIGCHLD, &sa, NULL) != 0) {
+\t\t\t\tdropbear_exit("signal() error");
+\t\t\t}
+\t\t}
+"""
+    patch_file(os.path.join(src, "dbutil.c"), sig1_old, sig1_new, "spawn_command SIGCHLD")
+    sig2_old = """\t/* Re-enable SIGPIPE for the executed process */
+\tif (signal(SIGPIPE, SIG_DFL) == SIG_ERR) {
+\t\tdropbear_exit("signal() error");
+\t}
+"""
+    sig2_new = """\t/* Re-enable SIGPIPE for the executed process */
+\t{
+\t\tstruct sigaction sa = {0};
+\t\tsa.sa_handler = SIG_DFL;
+\t\tif (sigaction(SIGPIPE, &sa, NULL) != 0) {
+\t\t\tdropbear_exit("signal() error");
+\t\t}
+\t}
+"""
+    patch_file(os.path.join(src, "dbutil.c"), sig2_old, sig2_new, "spawn_command SIGPIPE")
+
     print("all patches applied")
 
 if __name__ == "__main__":
