@@ -133,7 +133,7 @@ jobs:
           git clone --depth 1 https://github.com/termux/termux-elf-cleaner /tmp/elf-cleaner
           cmake -S /tmp/elf-cleaner -B /tmp/elf-cleaner/build -DCMAKE_BUILD_TYPE=Release
           cmake --build /tmp/elf-cleaner/build -j2
-          sudo install /tmp/elf-cleaner/build/elf-cleaner /usr/local/bin/
+          sudo install /tmp/elf-cleaner/build/termux-elf-cleaner /usr/local/bin/elf-cleaner
 
       - name: 构建 APK
         run: |
