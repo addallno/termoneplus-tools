@@ -57,7 +57,7 @@ public class ToolInstaller {
     }
 
     public static File getStartScript(Context ctx) {
-        return new File(getBinDir(ctx), "start_ssh.sh");
+        return new File(getBinDir(ctx), "sshd");
     }
 
     public static File getBusybox(Context ctx) {
@@ -174,10 +174,23 @@ public class ToolInstaller {
                 auth.setExecutable(false);
             }
 
-            // 4) 写 start_ssh.sh 并加执行位
+            // 4) 写环境 profile（供所有 shell 通道统一变量）+ sshd 启动脚本
+            writeEnvProfile(ctx);
             writeStartScript(ctx);
 
-            // 5) 按配置决定是否启动 dropbear
+            // 5) 骨架 .shrc → $HOME/.shrc（mksh/ash 交互 shell 启动文件，仅首次）
+            File shrc = new File(home, ".shrc");
+            if (!shrc.exists()) {
+                try {
+                    copyAsset(ctx.getAssets(), "skel/shrc", shrc);
+                    shrc.setReadable(true, true);
+                    shrc.setWritable(true, true);
+                } catch (java.io.FileNotFoundException e) {
+                    Log.i(TAG, "skel/shrc 不存在，跳过");
+                }
+            }
+
+            // 6) 按配置决定是否启动 dropbear
             if (isAutoStartSsh(ctx)) {
                 java.lang.Process p = new ProcessBuilder("/system/bin/sh", getStartScript(ctx).getAbsolutePath())
                         .redirectErrorStream(true).start();
@@ -193,27 +206,40 @@ public class ToolInstaller {
         }
     }
 
-    /* ---- start_ssh.sh ---- */
+    /* ---- sshd（dropbear 启动脚本）与环境 profile ---- */
+
+    /** $PREFIX/etc/profile：所有 shell 通道（dropbear 会话 / 手动 tcpsvd sh）统一变量 */
+    private static void writeEnvProfile(Context ctx) throws IOException {
+        File prof = new File(getPrefix(ctx), "etc/profile");
+        String home = getHomeDir(ctx).getAbsolutePath();
+        String prefix = getPrefix(ctx).getAbsolutePath();
+        String body = "export HOME=" + home + "\n"
+                + "export PREFIX=" + prefix + "\n"
+                + "export PATH=$PREFIX/bin:/system/bin:/system/xbin:$HOME/cmd:$PATH\n"
+                + "export USER=root\n"
+                + "export SHELL=/system/bin/sh\n";
+        PrintWriter out = new PrintWriter(prof);
+        out.print(body);
+        out.flush();
+        out.close();
+        prof.setReadable(true, true);
+    }
 
     private static void writeStartScript(Context ctx) throws IOException {
         File script = getStartScript(ctx);
 
-        String home = getHomeDir(ctx).getAbsolutePath();
-        String prefix = getPrefix(ctx).getAbsolutePath();
         String hostkey = getHostKeyFile(ctx).getAbsolutePath();
         String pidfile = getPidFile(ctx).getAbsolutePath();
         String dropbear = getDropbear(ctx).getAbsolutePath();
         String dropbearkey = new File(getBinDir(ctx), "dropbearkey").getAbsolutePath();
+        String prof = new File(getPrefix(ctx), "etc/profile").getAbsolutePath();
         int port = getSshPort(ctx);
 
         StringBuilder sb = new StringBuilder();
         sb.append("#!/system/bin/sh\n");
         sb.append("# 启动/重启 dropbear SSH 服务（幂等）。端口取自 ").append(getConfigFile(ctx).getAbsolutePath()).append("\n");
-        sb.append("export HOME=").append(home).append("\n");
-        sb.append("export PREFIX=").append(prefix).append("\n");
-        sb.append("export PATH=$PREFIX/bin:/system/bin:/system/xbin:$HOME:$HOME/cmd:$PATH\n");
-        sb.append("export USER=root\n");
-        sb.append("export SHELL=/system/bin/sh\n");
+        sb.append(". ").append(prof).append(" 2>/dev/null\n");
+        sb.append("export ENV=").append(prof).append("\n");
         sb.append("\n");
         sb.append("ETC=$PREFIX/etc/dropbear\n");
         sb.append("mkdir -p $ETC $HOME/.ssh\n");
