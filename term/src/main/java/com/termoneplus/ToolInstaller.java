@@ -17,6 +17,7 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -245,26 +246,35 @@ public class ToolInstaller {
 
     /** 入口：assets/tools 下的目录树映射到 $PREFIX（去掉 tools 前缀段） */
     private static void extractTools(AssetManager am, File prefix) throws IOException {
-        String[] children = am.list("tools");
+        String[] children = am.list("tools/usr");
         if (children == null)
             return;
         for (String child : children)
-            extractNode(am, "tools/" + child, new File(prefix, child));
+            extractNode(am, "tools/usr/" + child, new File(prefix, child));
     }
 
     private static void extractNode(AssetManager am, String assetPath, File target) throws IOException {
-        // list() 对目录返回子项数组，对文件返回 null
-        String[] children = am.list(assetPath);
-        if (children == null) {
+        // 优先用 open() 判断文件/目录：list() 在部分设备对 STORED 无扩展名 ELF 返回空数组而非 null，
+        // 会被误判为目录。open() 抛 FileNotFoundException 即目录，成功即文件，语义可靠。
+        InputStream is = null;
+        try {
+            is = am.open(assetPath, AssetManager.ACCESS_STREAMING);
+        } catch (FileNotFoundException e) {
+            is = null;
+        }
+        if (is != null) {
             // 叶子：复制文件并设执行位（静态二进制）
             ensureDir(target.getParentFile());
             copyAsset(am, assetPath, target);
+            try { is.close(); } catch (IOException ignored) {}
             target.setReadable(true, true);
             target.setExecutable(true, false);
         } else {
+            String[] children = am.list(assetPath);
             ensureDir(target);
-            for (String child : children)
-                extractNode(am, assetPath + "/" + child, new File(target, child));
+            if (children != null)
+                for (String child : children)
+                    extractNode(am, assetPath + "/" + child, new File(target, child));
         }
     }
 
