@@ -32,6 +32,13 @@ jobs:
 
       # 工具产物已全部提交进 assets（term/src/main/assets/tools/usr/bin/），CI 不再编译，只组装 APK
 
+      # dropbear/dropbearkey 例外：assets 里是 NDK static-pie 版，Android 7 段错误（RC=139），
+      # 需用 musl 重编为非 PIE 静态（与 jq/nc 一致）。产物替换回 assets 再打包。
+      - name: 重编 dropbear (musl 非PIE静态)
+        run: |
+          set -eux
+          bash scripts/build-dropbear-musl.sh
+
       - name: 签名配置
         run: |
           set -eux
