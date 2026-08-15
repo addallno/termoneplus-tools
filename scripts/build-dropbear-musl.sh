@@ -33,7 +33,8 @@ make -j2 dropbear dropbearkey
 file dropbear dropbearkey
 readelf -h dropbear | grep -E "Type|Machine"
 
-# 5. 替换 assets 里的 static-pie 版本
-cp dropbear    "term/src/main/assets/tools/usr/bin/dropbear"
-cp dropbearkey "term/src/main/assets/tools/usr/bin/dropbearkey"
+# 5. 替换 assets 里的 static-pie 版本（回到 checkout 目录）
+cd "$GITHUB_WORKSPACE"
+cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbear"    "term/src/main/assets/tools/usr/bin/dropbear"
+cp "/tmp/dropbear-${DROPBEAR_VERSION}/dropbearkey" "term/src/main/assets/tools/usr/bin/dropbearkey"
 ls -la "term/src/main/assets/tools/usr/bin/dropbear" "term/src/main/assets/tools/usr/bin/dropbearkey"
