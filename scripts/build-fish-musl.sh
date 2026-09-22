@@ -48,9 +48,11 @@ cd "/tmp/ncurses-${NCURSES_VERSION}"
   LDFLAGS="-static"
 # 只安装库和头文件，跳过 progs（避免 host strip 处理 ARM 二进制）
 make -j$(nproc) install.libs
+make -j$(nproc) install.includes
 
-# 验证 ncursesw 静态库
+# 验证 ncursesw 静态库和头文件
 ls -la "$PREFIX/lib/libncursesw.a" 2>/dev/null || ls -la "$PREFIX/lib/"*ncurses* 2>/dev/null
+ls -la "$PREFIX/include/ncursesw/curses.h" 2>/dev/null || ls -la "$PREFIX/include/curses.h" 2>/dev/null || { echo "ERROR: ncurses 头文件未安装"; exit 1; }
 
 # 3. 下载 fish 源码
 echo "=== 下载 fish ${FISH_VERSION} ==="
