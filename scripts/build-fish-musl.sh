@@ -36,6 +36,7 @@ cd "/tmp/ncurses-${NCURSES_VERSION}"
   --without-tests \
   --without-cxx-binding \
   --without-debug \
+  --without-progs \
   --enable-pc-files \
   --with-pkg-config-libdir="$PREFIX/lib/pkgconfig" \
   CC="${CROSS}gcc" \
@@ -45,7 +46,8 @@ cd "/tmp/ncurses-${NCURSES_VERSION}"
   STRIP="${CROSS}strip" \
   CFLAGS="-O2 -static" \
   LDFLAGS="-static"
-make -j$(nproc) install
+# 只安装库和头文件，跳过 progs（避免 host strip 处理 ARM 二进制）
+make -j$(nproc) install.libs
 
 # 验证 ncursesw 静态库
 ls -la "$PREFIX/lib/libncursesw.a" 2>/dev/null || ls -la "$PREFIX/lib/"*ncurses* 2>/dev/null
