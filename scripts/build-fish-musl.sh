@@ -84,8 +84,7 @@ mkdir -p build && cd build
 cmake .. \
   -DCMAKE_TOOLCHAIN_FILE=/tmp/cmake-toolchain-arm.cmake \
   -DCMAKE_BUILD_TYPE=MinSizeRel \
-  -DCMAKE_EXE_LINKER_FLAGS="-Wl,-Bstatic -s" \
-  -DCURSES_FORM_H_PATH="$PREFIX/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-static -s" \
   -DBUILD_DOCS=OFF \
   -DCMAKE_INSTALL_PREFIX=/usr
 
