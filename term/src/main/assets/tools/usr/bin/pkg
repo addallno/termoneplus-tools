@@ -1,0 +1,243 @@
+#!/data/data/com.termtools.box/files/usr/bin/bash
+# TermTools 包管理器 — Termux 风格
+# 用法: pkg {install|update|upgrade|remove|list|search|info} [packages...]
+# 从 GitHub Releases 下载静态 ARM32 工具
+
+set -euo pipefail
+
+APP_ID="com.termtools.box"
+PREFIX="$(cd "$(dirname "$0")/.." && pwd)"
+BIN_DIR="$PREFIX/bin"
+ETC_DIR="$PREFIX/etc"
+CACHE_DIR="${TMPDIR:-/data/data/$APP_ID/cache}/pkg-cache"
+REPO="${PKG_REPO:-addallno/termoneplus-tools}"
+RELEASE_TAG="${PKG_TAG:-tools-latest}"
+PKG_LIST_URL="https://raw.githubusercontent.com/$REPO/$RELEASE_TAG/packages"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[*]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+log_error() { echo -e "${RED}[E]${NC} $*" >&2; }
+log_step()  { echo -e "${CYAN}[>]${NC} $*"; }
+
+# 检查网络
+check_net() {
+  if ! ping -c 1 -W 3 github.com >/dev/null 2>&1; then
+    log_error "无法连接 GitHub，请检查网络"
+    return 1
+  fi
+}
+
+# 下载文件
+download() {
+  local url="$1" dest="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --connect-timeout 30 --retry 3 --retry-delay 5 -o "$dest" "$url"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --timeout=30 -O "$dest" "$url"
+  else
+    log_error "需要 curl 或 wget"
+    return 1
+  fi
+}
+
+# 解压归档
+extract_archive() {
+  local archive="$1" dest="$2"
+  case "$archive" in
+    *.tar.gz|*.tgz)  tar xzf "$archive" -C "$dest" ;;
+    *.tar.xz|*.txz)  tar xJf "$archive" -C "$dest" ;;
+    *.tar.bz2|*.tbz2) tar xjf "$archive" -C "$dest" ;;
+    *.zip)            unzip -qo "$archive" -d "$dest" ;;
+    *.gz)             gunzip -c "$archive" > "$dest/$(basename "$archive" .gz)" ;;
+    *)                log_error "不支持的格式: $archive"; return 1 ;;
+  esac
+}
+
+# pkg update — 刷新包索引
+do_update() {
+  check_net || return 1
+  mkdir -p "$CACHE_DIR" "$ETC_DIR"
+  log_step "正在刷新包索引..."
+  download "$PKG_LIST_URL/packages.txt" "$ETC_DIR/pkg-list.txt" 2>/dev/null || {
+    # 如果远程列表不存在，生成本地列表
+    log_warn "远程包列表不可用，使用本地已安装列表"
+    ls "$BIN_DIR" 2>/dev/null > "$ETC_DIR/pkg-list.txt"
+  }
+  log_info "包索引已更新"
+}
+
+# pkg upgrade — 升级所有已安装的包
+do_upgrade() {
+  do_update
+  log_step "检查可用更新..."
+  local updated=0
+  if [ -f "$ETC_DIR/pkg-list.txt" ]; then
+    while IFS= read -r pkg; do
+      [ -z "$pkg" ] && continue
+      install_pkg "$pkg" 2>/dev/null && updated=$((updated + 1))
+    done < "$ETC_DIR/pkg-list.txt"
+  fi
+  log_info "升级完成，共更新 $updated 个包"
+}
+
+# pkg install <packages...> — 安装包
+do_install() {
+  [ $# -eq 0 ] && { log_error "用法: pkg install <package> [package...]"; return 1; }
+  check_net || return 1
+  mkdir -p "$CACHE_DIR"
+  local failed=0
+  for pkg in "$@"; do
+    install_pkg "$pkg" || failed=$((failed + 1))
+  done
+  [ $failed -gt 0 ] && return 1
+  return 0
+}
+
+install_pkg() {
+  local pkg="$1"
+  log_step "安装 $pkg..."
+
+  # 尝试从 GitHub Release 下载
+  local url="https://github.com/$REPO/releases/download/$RELEASE_TAG/${pkg}.tar.gz"
+  local archive="$CACHE_DIR/${pkg}.tar.gz"
+
+  if download "$url" "$archive" 2>/dev/null; then
+    extract_archive "$archive" "$PREFIX"
+    chmod +x "$BIN_DIR/$pkg" 2>/dev/null || true
+    rm -f "$archive"
+    log_info "$pkg 安装成功"
+    return 0
+  fi
+
+  # 尝试直接下载二进制
+  url="https://github.com/$REPO/releases/download/$RELEASE_TAG/${pkg}"
+  if download "$url" "$BIN_DIR/$pkg" 2>/dev/null; then
+    chmod +x "$BIN_DIR/$pkg"
+    log_info "$pkg 安装成功"
+    return 0
+  fi
+
+  log_error "$pkg 未找到或下载失败"
+  return 1
+}
+
+# pkg remove <packages...> — 删除包
+do_remove() {
+  [ $# -eq 0 ] && { log_error "用法: pkg remove <package> [package...]"; return 1; }
+  for pkg in "$@"; do
+    local target="$BIN_DIR/$pkg"
+    if [ -f "$target" ]; then
+      rm -f "$target"
+      log_info "$pkg 已删除"
+    else
+      log_warn "$pkg 未安装"
+    fi
+  done
+}
+
+# pkg list — 列出已安装的包
+do_list() {
+  echo -e "${CYAN}已安装的包：${NC}"
+  if [ -d "$BIN_DIR" ]; then
+    local count=0
+    for f in "$BIN_DIR"/*; do
+      [ -f "$f" ] && [ -x "$f" ] && {
+        echo "  $(basename "$f")"
+        count=$((count + 1))
+      }
+    done
+    echo ""
+    echo -e "共 ${GREEN}$count${NC} 个可执行文件"
+  fi
+}
+
+# pkg search <keyword> — 搜索包
+do_search() {
+  [ $# -eq 0 ] && { log_error "用法: pkg search <keyword>"; return 1; }
+  local keyword="$1"
+  check_net || return 1
+
+  log_step "搜索 '$keyword'..."
+  # 从 GitHub API 搜索
+  local api_url="https://api.github.com/search/repositories?q=${keyword}+arm+static+linux&sort=stars&per_page=5"
+  local result
+  if result=$(curl -sf "$api_url" 2>/dev/null); then
+    echo "$result" | grep -o '"full_name":"[^"]*"' | sed 's/"full_name":"//;s/"//' | head -5
+  else
+    # 本地搜索
+    grep -il "$keyword" "$ETC_DIR/pkg-list.txt" 2>/dev/null || log_warn "未找到匹配结果"
+  fi
+}
+
+# pkg info <package> — 查看包信息
+do_info() {
+  [ $# -eq 0 ] && { log_error "用法: pkg info <package>"; return 1; }
+  local pkg="$1"
+  local target="$BIN_DIR/$pkg"
+
+  echo -e "${CYAN}包信息: $pkg${NC}"
+  if [ -f "$target" ]; then
+    echo "  状态: 已安装"
+    echo "  路径: $target"
+    echo "  大小: $(du -h "$target" | cut -f1)"
+    file "$target" 2>/dev/null | sed 's/^/  文件: /'
+  else
+    echo "  状态: 未安装"
+  fi
+}
+
+# pkg help — 显示帮助
+do_help() {
+  cat << 'EOF'
+TermTools 包管理器
+
+用法:
+  pkg update                 刷新包索引
+  pkg upgrade                升级所有已安装的包
+  pkg install <pkg> [...]    安装包
+  pkg remove <pkg> [...]     删除包
+  pkg list                   列出已安装的包
+  pkg search <keyword>       搜索包
+  pkg info <pkg>             查看包信息
+  pkg help                   显示此帮助
+
+环境变量:
+  PKG_REPO    GitHub 仓库 (默认: addallno/termoneplus-tools)
+  PKG_TAG     Release 标签 (默认: tools-latest)
+
+示例:
+  pkg install curl wget git
+  pkg remove vim
+  PKG_REPO=user/repo PKG_TAG=v1 pkg install tool
+EOF
+}
+
+# 主入口
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "$cmd" in
+    update)   do_update ;;
+    upgrade)  do_upgrade ;;
+    install|add|i)  do_install "$@" ;;
+    remove|delete|rm) do_remove "$@" ;;
+    list|ls)  do_list ;;
+    search|s) do_search "$@" ;;
+    info)     do_info "$@" ;;
+    help|-h|--help) do_help ;;
+    *)
+      log_error "未知命令: $cmd"
+      do_help
+      return 1
+      ;;
+  esac
+}
+
+main "$@"
