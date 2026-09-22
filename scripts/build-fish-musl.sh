@@ -101,7 +101,7 @@ cmake .. \
   -DCURSES_HAVE_NCURSES_CURSES_H=YES \
   -DCURSES_HAVE_NCURSES_NCURSES_H=YES \
   -DCMAKE_C_FLAGS="-I$PREFIX/include" \
-  -DCMAKE_CXX_FLAGS="-I$PREFIX/include"
+  -DCMAKE_CXX_FLAGS="-I$PREFIX/include -Dbool=bool"
 
 cmake --build . -j$(nproc) 2>&1 | tail -30
 
