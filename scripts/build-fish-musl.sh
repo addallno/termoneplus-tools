@@ -50,6 +50,14 @@ cd "/tmp/ncurses-${NCURSES_VERSION}"
 make -j$(nproc) install.libs
 make -j$(nproc) install.includes
 
+# 修补 ncurses 头文件：移除 #define bool NCURSES_BOOL（破坏 C++ bool 关键字）
+# ncurses 6.4 curses.tail 中有 #define bool NCURSES_BOOL，在 C++ 中会导致
+# bool 被宏替换为 unsigned char，破坏 unique_ptr::operator bool()
+sed -i '/#define bool/d' "$PREFIX/include/ncursesw/curses.h"
+# 同时移除相关的 FALSE/TRUE 重定义
+sed -i '/#define FALSE/d' "$PREFIX/include/ncursesw/curses.h"
+sed -i '/#define TRUE/d' "$PREFIX/include/ncursesw/curses.h"
+
 # 验证 ncursesw 静态库和头文件
 ls -la "$PREFIX/lib/libncursesw.a" 2>/dev/null || ls -la "$PREFIX/lib/"*ncurses* 2>/dev/null
 ls -la "$PREFIX/include/ncursesw/curses.h" 2>/dev/null || ls -la "$PREFIX/include/curses.h" 2>/dev/null || { echo "ERROR: ncurses 头文件未安装"; exit 1; }
@@ -101,7 +109,7 @@ cmake .. \
   -DCURSES_HAVE_NCURSES_CURSES_H=YES \
   -DCURSES_HAVE_NCURSES_NCURSES_H=YES \
   -DCMAKE_C_FLAGS="-I$PREFIX/include" \
-  -DCMAKE_CXX_FLAGS="-I$PREFIX/include -Dbool=bool"
+  -DCMAKE_CXX_FLAGS="-I$PREFIX/include"
 
 cmake --build . -j$(nproc) 2>&1 | tail -30
 
