@@ -19,11 +19,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: 安装 Android SDK / NDK
-        uses: android-actions/setup-android@v3
-
-      - name: 安装 SDK 组件
+      - name: 安装 Android SDK
         run: |
+          set -eux
+          mkdir -p "$ANDROID_HOME"
+          # 下载 cmdline-tools
+          curl -sL "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o /tmp/cmdline-tools.zip
+          unzip -q -o /tmp/cmdline-tools.zip -d /tmp/cmdline-tools
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          mv /tmp/cmdline-tools/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          # 接受许可协议
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          # 安装 SDK 组件
           sdkmanager --sdk_root="$ANDROID_HOME" \
             "platforms;android-36" \
             "build-tools;37.0.0" \
