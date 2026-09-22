@@ -82,15 +82,26 @@ TOOLCHAIN
 
 # 6. 构建 fish
 echo "=== 编译 fish ==="
+# 验证 ncursesw 头文件安装路径
+echo "=== ncursesw 头文件 ==="
+find "$PREFIX/include" -name "curses.h" -o -name "ncurses.h" 2>/dev/null
 mkdir -p build && cd build
 cmake .. \
   -DCMAKE_TOOLCHAIN_FILE=/tmp/cmake-toolchain-arm.cmake \
   -DCMAKE_BUILD_TYPE=MinSizeRel \
   -DCMAKE_EXE_LINKER_FLAGS="-static -s" \
   -DBUILD_DOCS=OFF \
-  -DCMAKE_INSTALL_PREFIX=/usr
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCURSES_FORM_H_PATH="$PREFIX/include/ncursesw" \
+  -DCURSES_INCLUDE_PATH="$PREFIX/include/ncursesw" \
+  -DCURSES_LIBRARY="$PREFIX/lib/libncursesw.a" \
+  -DCURSES_FORM_LIBRARY="$PREFIX/lib/libncursesw.a" \
+  -DCURSES_HAVE_CURSES_H=YES \
+  -DCURSES_HAVE_NCURSES_H=YES \
+  -DCURSES_HAVE_NCURSES_CURSES_H=YES \
+  -DCURSES_HAVE_NCURSES_NCURSES_H=YES
 
-cmake --build . -j$(nproc) 2>&1 | tail -20
+cmake --build . -j$(nproc) 2>&1 | tail -30
 
 # 7. 查找产物
 FISH_BIN="$(pwd)/fish"
