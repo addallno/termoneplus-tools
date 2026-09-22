@@ -33,11 +33,11 @@ cd "/tmp/ncurses-${NCURSES_VERSION}"
   --with-normal=yes \
   --with-debug=no \
   --enable-widec \
-  --enable-term-driver \
-  --enable-sp-funcs \
-  --disable-database \
-  --disable-home-terminfo \
   --without-tests \
+  --without-cxx-binding \
+  --without-debug \
+  --enable-pc-files \
+  --with-pkg-config-libdir="$PREFIX/lib/pkgconfig" \
   CC="${CROSS}gcc" \
   CXX="${CROSS}g++" \
   AR="${CROSS}ar" \
