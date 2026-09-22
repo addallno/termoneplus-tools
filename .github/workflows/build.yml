@@ -47,6 +47,12 @@ jobs:
           set -eux
           bash scripts/build-dropbear-musl.sh
 
+      # fish shell 不存在预编译 ARM32 版本，用同一套 musl 工具链交叉编译静态版本
+      - name: 编译 fish shell (musl 静态 ARM32)
+        run: |
+          set -eux
+          bash scripts/build-fish-musl.sh
+
       - name: 签名配置
         run: |
           set -eux
