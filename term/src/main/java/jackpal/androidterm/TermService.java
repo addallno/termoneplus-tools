@@ -93,7 +93,7 @@ public class TermService extends SessionsService {
 
     @Override
     public IBinder onBind(Intent intent) {
-        if (TermExec.SERVICE_ACTION_V1.equals(intent.getAction())) {
+        if ("jackpal.androidterm.action.START_TERM.v1".equals(intent.getAction())) {
             Log.i("TermService", "Outside process called onBind()");
 
             return new RBinder();
