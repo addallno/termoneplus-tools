@@ -53,9 +53,9 @@ public class ShellTermSession extends GenericTermSession {
 
 
     public ShellTermSession(TermSettings settings, String initialCommand) throws IOException {
-        com.termoneplus.utils.RunLog.info("ShellTermSession: open /dev/ptmx");
         super(ParcelFileDescriptor.open(new File("/dev/ptmx"), ParcelFileDescriptor.MODE_READ_WRITE),
                 settings, false);
+        com.termoneplus.utils.RunLog.info("ShellTermSession: ptmx opened, shell=" + settings.getShell());
 
         mInitialCommand = initialCommand;
 
