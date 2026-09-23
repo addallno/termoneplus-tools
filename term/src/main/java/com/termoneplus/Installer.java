@@ -145,7 +145,10 @@ public class Installer {
             boolean allOk = true;
             for (String tool : tools) {
                 File target = new File(binDir, tool);
-                if (!target.exists()) {
+                // 跳过 0 字节占位资产；若目标已存在但为 0 字节则重新安装
+                boolean needInstall = !target.exists() || target.length() == 0;
+                if (needInstall) {
+                    if (target.exists()) target.delete();
                     if (!install_asset(am, "tools/usr/bin/" + tool, target)) {
                         allOk = false;
                     } else {

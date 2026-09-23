@@ -17,15 +17,23 @@
 package com.termoneplus;
 
 import android.os.ParcelFileDescriptor;
+import android.util.Log;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 
 public class Process {
+    private static final String TAG = "TermOnePlus";
 
     static {
-        System.loadLibrary("term-system");
+        try {
+            System.loadLibrary("term-system");
+            Log.i(TAG, "libterm-system loaded OK");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e(TAG, "Failed to load libterm-system", e);
+            throw e;
+        }
     }
 
     public static int createSubprocess(

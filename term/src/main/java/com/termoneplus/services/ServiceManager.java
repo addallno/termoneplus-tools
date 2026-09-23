@@ -34,24 +34,42 @@ public class ServiceManager {
 
     private final ServiceConnection connection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
-            if (listener == null) return;
+            com.termoneplus.utils.RunLog.info("ServiceManager.onServiceConnected: " + name);
+            if (listener == null) {
+                com.termoneplus.utils.RunLog.warn("ServiceManager.onServiceConnected: listener is null");
+                return;
+            }
             TermService.TSBinder binder = (TermService.TSBinder) service;
             listener.onServiceConnection(binder.getService());
         }
 
         public void onServiceDisconnected(ComponentName name) {
+            com.termoneplus.utils.RunLog.warn("ServiceManager.onServiceDisconnected: " + name);
             if (listener == null) return;
             listener.onServiceConnection(null);
         }
     };
 
     public void onCreate(Context context) {
+        com.termoneplus.utils.RunLog.info("ServiceManager.onCreate: starting TermService");
         intent = StartServiceCompat.start(context);
+        com.termoneplus.utils.RunLog.info("ServiceManager.onCreate: intent=" + intent);
     }
 
     public void onStart(Context context) {
-        if (!context.bindService(intent, connection, Context.BIND_AUTO_CREATE))
+        com.termoneplus.utils.RunLog.info("ServiceManager.onStart: bindService intent=" + intent);
+        boolean ok;
+        try {
+            ok = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+        } catch (Throwable t) {
+            com.termoneplus.utils.RunLog.error("ServiceManager.onStart: bindService threw", t);
+            throw new IllegalStateException("Failed to bind to TermService!", t);
+        }
+        com.termoneplus.utils.RunLog.info("ServiceManager.onStart: bindService returned " + ok);
+        if (!ok) {
+            com.termoneplus.utils.RunLog.error("ServiceManager.onStart: bindService returned false!");
             throw new IllegalStateException("Failed to bind to TermService!");
+        }
     }
 
     public void onStop(Context context) {

@@ -1,16 +1,18 @@
-#!/data/data/com.termtools.box/files/usr/bin/bash
+#!/system/bin/sh
 # TermTools 包管理器 — Termux 风格
 # 用法: pkg {install|update|upgrade|remove|list|search|info} [packages...]
-# 从 GitHub Releases 下载静态 ARM32 工具
+# 从 GitHub 下载静态 ARM32 工具（polaco1782/linux-static-binaries）
 
-set -euo pipefail
+set -eu
 
 APP_ID="com.termtools.box"
 PREFIX="$(cd "$(dirname "$0")/.." && pwd)"
 BIN_DIR="$PREFIX/bin"
 ETC_DIR="$PREFIX/etc"
 CACHE_DIR="${TMPDIR:-/data/data/$APP_ID/cache}/pkg-cache"
-REPO="${PKG_REPO:-addallno/termoneplus-tools}"
+# 默认源：900+ 静态 ARM32 工具仓库
+PKG_RAW_BASE="https://raw.githubusercontent.com/${PKG_REPO:-polaco1782/linux-static-binaries}/master/${PKG_ARCH:-armv7l-eabihf}"
+REPO="${PKG_REPO:-polaco1782/linux-static-binaries}"
 RELEASE_TAG="${PKG_TAG:-tools-latest}"
 PKG_LIST_URL="https://raw.githubusercontent.com/$REPO/$RELEASE_TAG/packages"
 
@@ -103,10 +105,17 @@ install_pkg() {
   local pkg="$1"
   log_step "安装 $pkg..."
 
-  # 尝试从 GitHub Release 下载
-  local url="https://github.com/$REPO/releases/download/$RELEASE_TAG/${pkg}.tar.gz"
-  local archive="$CACHE_DIR/${pkg}.tar.gz"
+  # 1) 直接从 linux-static-binaries raw 下载静态二进制
+  local url="$PKG_RAW_BASE/$pkg"
+  if download "$url" "$BIN_DIR/$pkg" 2>/dev/null; then
+    chmod +x "$BIN_DIR/$pkg"
+    log_info "$pkg 安装成功 (raw)"
+    return 0
+  fi
 
+  # 2) 尝试 GitHub Release 归档
+  url="https://github.com/$REPO/releases/download/$RELEASE_TAG/${pkg}.tar.gz"
+  local archive="$CACHE_DIR/${pkg}.tar.gz"
   if download "$url" "$archive" 2>/dev/null; then
     extract_archive "$archive" "$PREFIX"
     chmod +x "$BIN_DIR/$pkg" 2>/dev/null || true
@@ -115,7 +124,7 @@ install_pkg() {
     return 0
   fi
 
-  # 尝试直接下载二进制
+  # 3) Release 直接二进制
   url="https://github.com/$REPO/releases/download/$RELEASE_TAG/${pkg}"
   if download "$url" "$BIN_DIR/$pkg" 2>/dev/null; then
     chmod +x "$BIN_DIR/$pkg"
@@ -208,13 +217,14 @@ TermTools 包管理器
   pkg help                   显示此帮助
 
 环境变量:
-  PKG_REPO    GitHub 仓库 (默认: addallno/termoneplus-tools)
+  PKG_REPO    GitHub 仓库 (默认: polaco1782/linux-static-binaries)
+  PKG_ARCH    架构子目录 (默认: armv7l-eabihf)
   PKG_TAG     Release 标签 (默认: tools-latest)
 
 示例:
   pkg install curl wget git
   pkg remove vim
-  PKG_REPO=user/repo PKG_TAG=v1 pkg install tool
+  PKG_REPO=user/repo pkg install tool
 EOF
 }
 

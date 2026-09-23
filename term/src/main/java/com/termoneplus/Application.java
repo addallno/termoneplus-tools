@@ -135,8 +135,16 @@ public class Application extends android.app.Application {
         super.onCreate();
 
         // 初始化日志（最早，用于诊断崩溃）
-        RunLog.init(getFilesDir());
+        RunLog.init(this);
         RunLog.info("Application.onCreate start, ID=" + ID + " VER=" + VER);
+
+        // 立即安装全局异常处理器，确保 onCreate 期间崩溃也能落盘
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            RunLog.crash(throwable);
+            // 重新抛出，让系统显示崩溃对话框
+            System.exit(1);
+        });
+        RunLog.info("UncaughtExceptionHandler installed");
 
         try {
             DynamicColors.applyToActivitiesIfAvailable(this);
@@ -233,13 +241,6 @@ public class Application extends android.app.Application {
         }
 
         RunLog.info("Application.onCreate finished OK");
-
-        // 安装全局异常处理器，捕获所有未处理崩溃
-        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-            RunLog.crash(throwable);
-            // 重新抛出，让系统显示崩溃对话框
-            System.exit(1);
-        });
     }
 
     private void linkNativeLibs() {

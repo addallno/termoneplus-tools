@@ -53,12 +53,15 @@ public class ShellTermSession extends GenericTermSession {
 
 
     public ShellTermSession(TermSettings settings, String initialCommand) throws IOException {
+        com.termoneplus.utils.RunLog.info("ShellTermSession: open /dev/ptmx");
         super(ParcelFileDescriptor.open(new File("/dev/ptmx"), ParcelFileDescriptor.MODE_READ_WRITE),
                 settings, false);
 
         mInitialCommand = initialCommand;
 
+        com.termoneplus.utils.RunLog.info("ShellTermSession: createShellProcess shell=" + settings.getShell());
         mProcId = createShellProcess(settings);
+        com.termoneplus.utils.RunLog.info("ShellTermSession: mProcId=" + mProcId);
         final Handler handler = new ProcessHandler(this);
         mWatcherThread = new Thread(() -> {
             Log.i(Application.APP_TAG, "waiting for: " + mProcId);
@@ -92,6 +95,7 @@ public class ShellTermSession extends GenericTermSession {
 
     private int createShellProcess(TermSettings settings) throws IOException {
         String shell = settings.getShell();
+        com.termoneplus.utils.RunLog.info("createShellProcess: shell=" + shell);
 
         ArrayList<String> argList = parse(shell);
         String arg0;
@@ -102,16 +106,25 @@ public class ShellTermSession extends GenericTermSession {
             File file = new File(arg0);
             if (!file.exists()) {
                 Log.e(Application.APP_TAG, "Shell " + arg0 + " not found!");
+                com.termoneplus.utils.RunLog.error("createShellProcess: shell not found: " + arg0);
                 throw new FileNotFoundException(arg0);
             } else if (!file.canExecute()) {
                 Log.e(Application.APP_TAG, "Shell " + arg0 + " not executable!");
+                com.termoneplus.utils.RunLog.error("createShellProcess: shell not executable: " + arg0);
+                throw new FileNotFoundException(arg0);
+            } else if (file.length() == 0) {
+                Log.e(Application.APP_TAG, "Shell " + arg0 + " is empty file!");
+                com.termoneplus.utils.RunLog.error("createShellProcess: shell is 0-byte: " + arg0);
                 throw new FileNotFoundException(arg0);
             }
             args = argList.toArray(new String[0]);
+            com.termoneplus.utils.RunLog.info("createShellProcess: using " + arg0 + " size=" + file.length());
         } catch (Exception e) {
+            com.termoneplus.utils.RunLog.warn("createShellProcess: primary shell failed (" + e + "), fallback failsafe");
             argList = parse(settings.getFailsafeShell());
             arg0 = argList.get(0);
             args = argList.toArray(new String[0]);
+            com.termoneplus.utils.RunLog.info("createShellProcess: failsafe=" + arg0);
         }
 
         Map<String, String> map = new HashMap<>(System.getenv());
@@ -128,7 +141,15 @@ public class ShellTermSession extends GenericTermSession {
         for (Map.Entry<String, String> entry : map.entrySet())
             env[k++] = entry.getKey() + "=" + entry.getValue();
 
-        return Process.createSubprocess(mTermFd, arg0, args, env);
+        try {
+            com.termoneplus.utils.RunLog.info("createShellProcess: Process.createSubprocess(" + arg0 + ")");
+            int pid = Process.createSubprocess(mTermFd, arg0, args, env);
+            com.termoneplus.utils.RunLog.info("createSubprocess returned pid=" + pid);
+            return pid;
+        } catch (Throwable t) {
+            com.termoneplus.utils.RunLog.error("createSubprocess failed", t);
+            throw t instanceof IOException ? (IOException) t : new IOException("createSubprocess failed", t);
+        }
     }
 
     private ArrayList<String> parse(String cmd) {

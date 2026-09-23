@@ -149,6 +149,12 @@ public class CommandCollector {
 
     private void start(Context context) {
         pending = TrustedApplications.size();
+        com.termoneplus.utils.RunLog.info("CommandCollector.start: pending=" + pending);
+        if (pending == 0) {
+            // 无受信任应用时立即回调，否则 populateSessions 永远不会执行
+            if (callback != null) callback.onCommandsConnected();
+            return;
+        }
         new Handler(Looper.getMainLooper()).post(() -> {
             for (String app : TrustedApplications.keySet()) {
                 ICommand remote = TrustedApplications.getRemote(app);

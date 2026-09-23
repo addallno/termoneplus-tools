@@ -106,14 +106,28 @@ public class TermService extends SessionsService {
 
     @Override
     public void onCreate() {
+        com.termoneplus.utils.RunLog.info("TermService.onCreate begin");
         /* Put the service in the foreground. */
-        Notification notification = buildNotification();
-        StartForeground.start(this, notification);
+        try {
+            Notification notification = buildNotification();
+            StartForeground.start(this, notification);
+            com.termoneplus.utils.RunLog.info("TermService: foreground started");
+        } catch (Throwable t) {
+            com.termoneplus.utils.RunLog.error("TermService: startForeground failed", t);
+            throw t;
+        }
 
-        command_service = new CommandService(this);
-        command_service.start();
+        try {
+            command_service = new CommandService(this);
+            command_service.start();
+            com.termoneplus.utils.RunLog.info("TermService: CommandService started");
+        } catch (Throwable t) {
+            com.termoneplus.utils.RunLog.error("TermService: CommandService failed", t);
+            // CommandService 失败不阻止服务启动
+        }
 
         Log.d(Application.APP_TAG, "TermService started");
+        com.termoneplus.utils.RunLog.info("TermService.onCreate finished OK");
     }
 
     @Override

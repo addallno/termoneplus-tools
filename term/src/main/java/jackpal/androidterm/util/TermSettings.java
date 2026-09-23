@@ -114,10 +114,14 @@ public class TermSettings {
             "/system/bin/sh"
         };
         for (String shell : candidates) {
-            if (new File(shell).canExecute()) {
+            File f = new File(shell);
+            // 跳过 0 字节占位文件（如 assets 中的空 bash）
+            if (f.canExecute() && f.length() > 0) {
+                com.termoneplus.utils.RunLog.info("detectPreferredShell -> " + shell);
                 return shell + " -";
             }
         }
+        com.termoneplus.utils.RunLog.warn("detectPreferredShell: no valid shell, fallback /system/bin/sh");
         return "/system/bin/sh -";
     }
 

@@ -178,10 +178,12 @@ public class Term extends AppCompatActivity
 
     private void onServiceConnection(TermService service) {
         if (service != null) {
+            com.termoneplus.utils.RunLog.info("onServiceConnection: connected, populateSessions");
             Log.i(Application.APP_TAG, "Application connected to TermService");
             mTermService = service;
             populateSessions();
         } else {
+            com.termoneplus.utils.RunLog.warn("onServiceConnection: disconnected");
             Log.i(Application.APP_TAG, "Application disconnected from TermService");
             mTermService = null;
         }
@@ -226,6 +228,7 @@ public class Term extends AppCompatActivity
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
+        com.termoneplus.utils.RunLog.info("Term.onCreate start");
         Log.v(Application.APP_TAG, "onCreate");
         command_collected = false;
         mHandler = new Handler(getMainLooper());
@@ -233,13 +236,16 @@ public class Term extends AppCompatActivity
         if (icicle == null)
             onNewIntent(getIntent());
 
+        com.termoneplus.utils.RunLog.info("Term.onCreate: creating TermSettings");
         mSettings = new TermSettings(this);
+        com.termoneplus.utils.RunLog.info("Term.onCreate: shell=" + mSettings.getShell());
 
         mActionBarMode = mSettings.actionBarMode();
 
         PreferenceManager.getDefaultSharedPreferences(this)
                 .registerOnSharedPreferenceChangeListener(this);
 
+        com.termoneplus.utils.RunLog.info("Term.onCreate: setting content view");
         mActionBar = TermActionBar.setTermContentView(this,
                 mActionBarMode == TermSettings.ACTION_BAR_MODE_HIDES);
         mActionBar.setOnItemSelectedListener(position -> {
@@ -259,12 +265,15 @@ public class Term extends AppCompatActivity
         mViewFlipper = findViewById(R.id.view_flipper);
 
         if (!command_collected) {
+            com.termoneplus.utils.RunLog.info("Term.onCreate: CommandCollector.collect");
             CommandCollector.collect(this, () -> {
                 command_collected = true;
+                com.termoneplus.utils.RunLog.info("Term: command collected, populateSessions");
                 populateSessions();
             });
         }
 
+        com.termoneplus.utils.RunLog.info("Term.onCreate: service_manager.onCreate");
         service_manager.onCreate(this);
 
         WakeLock.create(this);
@@ -272,27 +281,45 @@ public class Term extends AppCompatActivity
 
         mHaveFullHwKeyboard = checkHaveFullHwKeyboard(getResources().getConfiguration());
 
+        com.termoneplus.utils.RunLog.info("Term.onCreate: updatePrefs");
         updatePrefs();
         requestStoragePermission();
         mAlreadyStarted = true;
+        com.termoneplus.utils.RunLog.info("Term.onCreate finished OK");
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        com.termoneplus.utils.RunLog.info("Term.onStart begin");
 
         service_manager.setOnServiceConnectionListener(Term.this::onServiceConnection);
-        service_manager.onStart(this);
+        try {
+            service_manager.onStart(this);
+            com.termoneplus.utils.RunLog.info("Term.onStart: bind OK");
+        } catch (Throwable t) {
+            com.termoneplus.utils.RunLog.error("Term.onStart: bind failed", t);
+            throw t;
+        }
     }
 
     private synchronized void populateSessions() {
-        if (mTermService == null) return;
-        if (!command_collected) return;
+        if (mTermService == null) {
+            com.termoneplus.utils.RunLog.warn("populateSessions: mTermService == null");
+            return;
+        }
+        if (!command_collected) {
+            com.termoneplus.utils.RunLog.warn("populateSessions: !command_collected");
+            return;
+        }
 
         if (mTermService.getSessionCount() == 0) {
             try {
+                com.termoneplus.utils.RunLog.info("populateSessions: creating term session");
                 mTermService.addSession(createTermSession());
-            } catch (IOException e) {
+                com.termoneplus.utils.RunLog.info("populateSessions: session added");
+            } catch (Throwable e) {
+                com.termoneplus.utils.RunLog.error("populateSessions: failed to create session", e);
                 ScreenMessage.show(getApplicationContext(),
                         "Failed to start terminal session");
                 finish();
