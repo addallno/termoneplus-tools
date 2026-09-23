@@ -23,6 +23,7 @@ import android.text.TextUtils;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.color.DynamicColors;
+import com.termoneplus.utils.RunLog;
 import com.termoneplus.utils.ThemeManager;
 
 import android.util.Log;
@@ -133,7 +134,17 @@ public class Application extends android.app.Application {
     public void onCreate() {
         super.onCreate();
 
-        DynamicColors.applyToActivitiesIfAvailable(this);
+        // 初始化日志（最早，用于诊断崩溃）
+        RunLog.init(getFilesDir());
+        RunLog.info("Application.onCreate start, ID=" + ID + " VER=" + VER);
+
+        try {
+            DynamicColors.applyToActivitiesIfAvailable(this);
+            RunLog.info("DynamicColors applied");
+        } catch (Throwable t) {
+            RunLog.error("DynamicColors failed", t);
+            // 继续执行，DynamicColors 失败不应导致崩溃
+        }
 
         rootdir = getFilesDir().getParentFile();
         prefixdir = getFilesDir();
@@ -143,40 +154,92 @@ public class Application extends android.app.Application {
         tmpdir = new File(usrdir, "tmp");
         homedir = new File(prefixdir, "home");
         cachedir = getCacheDir();
+        RunLog.info("dirs: root=" + rootdir + " usr=" + usrdir + " home=" + homedir);
 
         // create directory structure
-        Installer.install_directory(usrdir, false);
-        Installer.install_directory(etcdir, false);
-        Installer.install_directory(libdir, false);
-        Installer.install_directory(tmpdir, false);
-        Installer.install_directory(homedir, false);
-        Installer.install_directory(new File(homedir, ".ssh"), false);
-
-        // copy native libraries to $PREFIX/lib
-        linkNativeLibs();
-
-        setupPreferences();
-        ThemeManager.migrateFileSelectionThemeMode(this);
-
-        TypefaceSetting.create(getAssets());
-
-        install_skeleton();
-        Installer.installToolsToPrefix(getAssets());
-
-        // xbindir: try libdir first, fallback to usrdir/bin
-        xbindir = libdir;
-        File exe = new File(xbindir, Installer.APPINFO_COMMAND);
-        if (!exe.canExecute()) {
-            File binDir = new File(usrdir, "bin");
-            Installer.install_directory(binDir, false);
-            xbindir = binDir;
-            Installer.copy_executable(exe, xbindir);
+        try {
+            Installer.install_directory(usrdir, false);
+            Installer.install_directory(etcdir, false);
+            Installer.install_directory(libdir, false);
+            Installer.install_directory(tmpdir, false);
+            Installer.install_directory(homedir, false);
+            Installer.install_directory(new File(homedir, ".ssh"), false);
+            RunLog.info("directories created");
+        } catch (Throwable t) {
+            RunLog.error("directory creation failed", t);
+            throw new RuntimeException("Directory setup failed", t);
         }
 
-        Installer.installAppScriptFile();
+        // copy native libraries to $PREFIX/lib
+        try {
+            linkNativeLibs();
+            RunLog.info("native libs linked");
+        } catch (Throwable t) {
+            RunLog.error("linkNativeLibs failed", t);
+            // 继续执行，native libs 失败不一定致命
+        }
+
+        try {
+            setupPreferences();
+            RunLog.info("preferences setup");
+        } catch (Throwable t) {
+            RunLog.error("setupPreferences failed", t);
+            throw new RuntimeException("Preferences setup failed", t);
+        }
+
+        try {
+            ThemeManager.migrateFileSelectionThemeMode(this);
+            TypefaceSetting.create(getAssets());
+            RunLog.info("theme setup done");
+        } catch (Throwable t) {
+            RunLog.error("theme setup failed", t);
+            // 继续执行，theme 失败不应阻止启动
+        }
+
+        try {
+            install_skeleton();
+            Installer.installToolsToPrefix(getAssets());
+            RunLog.info("skeleton and tools installed");
+        } catch (Throwable t) {
+            RunLog.error("install_skeleton/tools failed", t);
+            throw new RuntimeException("Tools install failed", t);
+        }
+
+        // xbindir: try libdir first, fallback to usrdir/bin
+        try {
+            xbindir = libdir;
+            File exe = new File(xbindir, Installer.APPINFO_COMMAND);
+            if (!exe.canExecute()) {
+                File binDir = new File(usrdir, "bin");
+                Installer.install_directory(binDir, false);
+                xbindir = binDir;
+                Installer.copy_executable(exe, xbindir);
+            }
+
+            Installer.installAppScriptFile();
+            RunLog.info("xbindir setup done, xbindir=" + xbindir);
+        } catch (Throwable t) {
+            RunLog.error("xbindir/appscript setup failed", t);
+            // 继续执行
+        }
 
         // start dropbear SSH server in background
-        startDropbear();
+        try {
+            startDropbear();
+            RunLog.info("startDropbear called");
+        } catch (Throwable t) {
+            RunLog.error("startDropbear failed", t);
+            // 继续执行，SSH 失败不应阻止 app 启动
+        }
+
+        RunLog.info("Application.onCreate finished OK");
+
+        // 安装全局异常处理器，捕获所有未处理崩溃
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            RunLog.crash(throwable);
+            // 重新抛出，让系统显示崩溃对话框
+            System.exit(1);
+        });
     }
 
     private void linkNativeLibs() {

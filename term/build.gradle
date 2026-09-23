@@ -68,6 +68,10 @@ android {
                 storePassword properties["store.password"]
                 keyAlias properties["key.alias"]
                 keyPassword properties["key.password"]
+                // Android 4.4 只支持 v1 (JAR) 签名，必须启用
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
 
