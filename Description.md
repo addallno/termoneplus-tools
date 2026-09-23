@@ -7,7 +7,7 @@
 - 自定义 `$PREFIX` / `$HOME` / `$TMPDIR` 目录结构
 - 启动时后台运行 Dropbear SSH（端口 8022）
 - Shell 优先级 `fish > bash > zsh > /system/bin/sh`（bash 已删除）
-- 内置约 30 个静态 ARM32 工具（curl、python、jq、nano、micro 等）
+- 内置约 70+ 静态 ARM32 工具（busybox、curl、python、jq、nano、vim、git、wget、strace、lsof、tcpdump 等）
 - `pkg` 包管理器，源指向 900+ 静态二进制仓库
 - 双目录运行日志 + 早期 UncaughtExceptionHandler，用于诊断 Android 4.4 崩溃
 
@@ -43,7 +43,7 @@
 ```
 /data/data/com.termtools.box/files/
   usr/          # $PREFIX
-    bin/        # 静态工具 + pkg + dropbear + fish
+    bin/        # 静态工具（~70 个 ARM32 ELF）+ pkg + dropbear + fish
     etc/        # mkshrc、host keys
     lib/        # native libs 副本
     tmp/        # $TMPDIR
@@ -115,6 +115,7 @@ unzip -l term-full-release.apk | grep META-INF  # 签名存在
 |--------|------|
 | `180c760` | fix: ShellTermSession super() 必须为首语句 |
 | `b29595e` | fix: 双目录 RunLog + 早期 handler + 全链路插桩 |
+| （本次） | feat: 内置 busybox + 30+ 实用静态工具（polaco + therealsaumil） |
 | `67426fd` | fix: v1 签名 + try-catch + 文件日志 |
 | `7bd6155` | feat: pkg 包管理器 |
 | `141293f` 等 | fish ARM32 musl 静态交叉编译系列 |
